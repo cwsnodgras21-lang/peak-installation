@@ -68,7 +68,7 @@ export default function DashboardPage() {
     return "#52c41a";
   }
 
-  const shortages = rows.filter((r) => r.net_headcount < 0);
+  const shortages = rows.filter((r) => Number(r.net_headcount ?? 0) < 0);
 
   const installerRows = rows.filter((r) => r.labor_role === "Installer");
 
