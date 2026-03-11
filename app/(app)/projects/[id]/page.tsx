@@ -976,7 +976,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       setLoading(false);
       return;
     }
-    setExposures((exposureData as FinancialExposure[]) ?? []);
+    setExposures((exposureData ?? []) as unknown as FinancialExposure[]);
 
     // Capacity view — filtered by tenant_id
     const { data: capData, error: capErr } = await supabase
@@ -988,7 +988,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       .eq("tenant_id", proj.tenant_id)
       .order("week_start_date", { ascending: true })
       .order("labor_role", { ascending: true });
-    if (!capErr) setCapacityRows((capData as CapacityRow[]) ?? []);
+    if (!capErr) setCapacityRows((capData ?? []) as unknown as CapacityRow[]);
 
     setViewingVersionId(null);
     setSwitchedLaborWeeks([]);
@@ -1067,7 +1067,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         .eq("tenant_id", project.tenant_id)
         .order("week_start_date", { ascending: true })
         .order("labor_role", { ascending: true });
-      if (!capErr) setCapacityRows((capData as CapacityRow[]) ?? []);
+      if (!capErr) setCapacityRows((capData ?? []) as unknown as CapacityRow[]);
     }
   }
 

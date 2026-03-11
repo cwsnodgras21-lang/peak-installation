@@ -74,13 +74,13 @@ export default function DashboardPage() {
 
   const riskWeeks = new Set(
     installerRows
-      .filter((r) => r.net_headcount < 0)
+      .filter((r) => Number(r.net_headcount ?? 0) < 0)
       .map((r) => r.week_start_date),
   ).size;
 
   const maxInstallerShortage = installerRows.reduce((min, r) => {
-    if (r.net_headcount < min) return r.net_headcount;
-    return min;
+    const net = Number(r.net_headcount ?? 0);
+    return net < min ? net : min;
   }, 0);
 
   const installerDemand = installerRows.reduce((sum, r) => {
