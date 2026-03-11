@@ -1,7 +1,10 @@
 // app/(app)/layout.tsx
 import Link from "next/link";
+import Image from "next/image";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const tenantName = "Peak Installation"; // later make this dynamic
+
   return (
     <div
       style={{
@@ -13,7 +16,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }}
     >
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr" }}>
-        {/* Sidebar */}
         <aside
           style={{
             position: "sticky",
@@ -28,29 +30,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              gap: 12,
               marginBottom: 18,
             }}
           >
             <div
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 10,
+                width: 42,
+                height: 42,
+                borderRadius: 12,
                 border: "1px solid #2b2b3a",
+                background: "#0f1720",
                 display: "grid",
                 placeItems: "center",
-                fontWeight: 900,
-                letterSpacing: 0.5,
+                overflow: "hidden",
+                flexShrink: 0,
               }}
             >
-              P
+              <Image
+                src="/nolturn-mark.png"
+                alt="Nolturn"
+                width={28}
+                height={28}
+                priority
+              />
             </div>
-            <div>
-              <div style={{ fontWeight: 900, fontSize: 16 }}>
-                Peak Installation
+
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontWeight: 900,
+                  fontSize: 16,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {tenantName}
               </div>
-              <div style={{ opacity: 0.7, fontSize: 12 }}>V0.5 Engine</div>
+              <div style={{ opacity: 0.7, fontSize: 12 }}>Ops Platform</div>
             </div>
           </div>
 
@@ -65,7 +83,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        {/* Main */}
         <div>
           <div
             style={{
