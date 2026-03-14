@@ -104,118 +104,99 @@ export default function ProjectsPage() {
   }, []);
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div>
-        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Projects</h1>
-        <p style={{ opacity: 0.8, marginTop: 6 }}>
-          Minimal list + create. Tenant-scoped by RLS.
-        </p>
-      </div>
+    <div style={{ display: "grid", gap: 24 }}>
+      <header className="pi-page-header">
+        <h1 className="pi-page-title">Projects</h1>
+        <p className="pi-page-desc">Create and manage projects. Tenant-scoped by RLS.</p>
+      </header>
 
-      <form
-        onSubmit={createProject}
-        style={{
-          display: "grid",
-          gap: 10,
-          padding: 16,
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 12,
-          maxWidth: 720,
-        }}
-      >
-        <div style={{ display: "grid", gap: 6 }}>
-          <label style={{ fontWeight: 600 }}>Project # *</label>
-          <input
-            value={projectNumber}
-            onChange={(e) => setProjectNumber(e.target.value)}
-            placeholder="P-1002"
-            style={{ padding: 10, borderRadius: 10 }}
-          />
-        </div>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <label style={{ fontWeight: 600 }}>Name *</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="New Conveyor Install"
-            style={{ padding: 10, borderRadius: 10 }}
-          />
-        </div>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <label style={{ fontWeight: 600 }}>Client</label>
-          <input
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="Amazon / FedEx / etc."
-            style={{ padding: 10, borderRadius: 10 }}
-          />
-        </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button
-            type="submit"
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Create Project
-          </button>
-
-          {error ? <span style={{ color: "#fca5a5" }}>{error}</span> : null}
+      <form onSubmit={createProject} className="pi-card" style={{ maxWidth: 720 }}>
+        <div style={{ display: "grid", gap: 16 }}>
+          <div className="pi-form-group">
+            <label>Project # *</label>
+            <input
+              className="pi-input"
+              value={projectNumber}
+              onChange={(e) => setProjectNumber(e.target.value)}
+              placeholder="P-1002"
+            />
+          </div>
+          <div className="pi-form-group">
+            <label>Name *</label>
+            <input
+              className="pi-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="New Conveyor Install"
+            />
+          </div>
+          <div className="pi-form-group">
+            <label>Client</label>
+            <input
+              className="pi-input"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Amazon / FedEx / etc."
+            />
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button type="submit" className="pi-btn">
+              Create Project
+            </button>
+            {error ? <span style={{ color: "var(--bad)" }}>{error}</span> : null}
+          </div>
         </div>
       </form>
 
-      <div
-        style={{
-          padding: 16,
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 12,
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>
-          Current Projects
-        </h2>
-
+      <div className="pi-card-lift">
+        <h2 className="pi-section-title">Current Projects</h2>
         {loading ? (
-          <div>Loading…</div>
+          <p className="pi-page-desc">Loading…</p>
         ) : projects.length === 0 ? (
-          <div style={{ opacity: 0.8 }}>No projects yet.</div>
+          <div className="pi-empty">
+            <div className="pi-empty-title">No projects yet</div>
+            <span>Create a project above to get started.</span>
+          </div>
         ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {projects.map((p) => (
-              <Link
-                key={p.id}
-                href={`/projects/${p.id}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "140px 1fr 120px",
-                  gap: 12,
-                  padding: 12,
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
-              >
-                <div style={{ fontWeight: 700 }}>{p.project_number}</div>
-
-                <div>
-                  <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ opacity: 0.75, fontSize: 13 }}>
-                    {p.client_name ?? "—"}
-                  </div>
-                </div>
-
-                <div style={{ textTransform: "capitalize", opacity: 0.9 }}>
-                  {p.status}
-                </div>
-              </Link>
-            ))}
+          <div className="pi-table-wrap">
+            <table className="pi-table">
+              <thead>
+                <tr>
+                  <th>Project #</th>
+                  <th>Name</th>
+                  <th>Client</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link
+                        href={`/projects/${p.id}`}
+                        style={{ fontWeight: 600, color: "var(--text)", textDecoration: "none" }}
+                      >
+                        {p.project_number}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link
+                        href={`/projects/${p.id}`}
+                        style={{ color: "var(--text)", textDecoration: "none" }}
+                      >
+                        {p.name}
+                      </Link>
+                    </td>
+                    <td>{p.client_name ?? "—"}</td>
+                    <td>
+                      <span className="pi-badge" style={{ textTransform: "capitalize" }}>
+                        {p.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

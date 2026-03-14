@@ -327,24 +327,23 @@ function Panel({
 }) {
   return (
     <div
+      className="pi-card-lift"
       style={{
-        background: C.surface,
-        border: `1px solid ${C.border}`,
-        borderRadius: 8,
         overflow: "hidden",
+        padding: 0,
       }}
     >
       <div
         style={{
-          padding: "11px 20px",
+          padding: "14px 20px",
           background: accent
-            ? "linear-gradient(90deg, rgba(251,146,60,0.14) 0%, rgba(251,146,60,0.03) 100%)"
-            : C.surfaceLift,
-          borderBottom: `1px solid ${C.borderFaint}`,
+            ? "linear-gradient(90deg, rgba(251,146,60,0.1) 0%, rgba(251,146,60,0.02) 100%)"
+            : "var(--panel-lift)",
+          borderBottom: "1px solid var(--border-faint)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 10,
+          gap: 12,
           flexWrap: "wrap",
         }}
       >
@@ -352,22 +351,21 @@ function Panel({
           {accent && (
             <span
               style={{
-                width: 3,
-                height: 15,
+                width: 4,
+                height: 18,
                 borderRadius: 2,
                 flexShrink: 0,
-                background: `linear-gradient(180deg, ${C.orange}, ${C.orangeDim})`,
+                background: "var(--brand)",
               }}
             />
           )}
           <h2
+            className="pi-section-title"
             style={{
               margin: 0,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: accent ? C.orange : C.dim,
+              fontSize: 13,
+              letterSpacing: "0.06em",
+              color: accent ? "var(--brand)" : "var(--muted)",
             }}
           >
             {title}
@@ -379,7 +377,7 @@ function Panel({
           </div>
         )}
       </div>
-      <div style={{ padding: "4px 20px 18px" }}>{children}</div>
+      <div style={{ padding: "16px 20px 20px" }}>{children}</div>
     </div>
   );
 }
@@ -387,16 +385,12 @@ function Panel({
 function SectionLabel({ label }: { label: string }) {
   return (
     <div
+      className="pi-section-title"
       style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        color: C.dim,
-        paddingTop: 14,
-        paddingBottom: 6,
-        borderBottom: `1px solid ${C.borderFaint}`,
-        marginBottom: 2,
+        paddingTop: 16,
+        paddingBottom: 8,
+        marginBottom: 8,
+        borderBottom: "1px solid var(--border-faint)",
       }}
     >
       {label}
@@ -408,11 +402,9 @@ function ColHead({ label }: { label: string }) {
   return (
     <span
       style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: C.faint,
+        fontSize: 11,
+        fontWeight: 600,
+        color: "var(--muted)",
       }}
     >
       {label}
@@ -425,26 +417,24 @@ function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "150px 1fr",
+        gridTemplateColumns: "120px 1fr",
         gap: 12,
-        padding: "9px 0",
-        borderBottom: `1px solid ${C.borderFaint}`,
+        padding: "10px 0",
+        borderBottom: "1px solid var(--border-faint)",
         alignItems: "start",
       }}
     >
       <span
         style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          color: C.dim,
+          fontSize: 12,
+          fontWeight: 600,
+          color: "var(--muted)",
           paddingTop: 1,
         }}
       >
         {label}
       </span>
-      <span style={{ color: C.primary, fontSize: 13, lineHeight: 1.5 }}>
+      <span style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.5 }}>
         {value ?? "—"}
       </span>
     </div>
@@ -454,29 +444,14 @@ function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
 function KpiCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div
+      className="pi-stat"
       style={{
-        background: C.surface,
-        border: `1px solid ${C.border}`,
-        borderRadius: 8,
-        padding: "15px 18px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
         minWidth: 0,
+        borderLeft: "3px solid var(--border)",
       }}
     >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.09em",
-          textTransform: "uppercase",
-          color: C.dim,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: C.primary }}>
+      <div className="pi-stat-label">{label}</div>
+      <div className="pi-stat-value" style={{ fontSize: 22 }}>
         {value}
       </div>
     </div>
@@ -487,10 +462,9 @@ function EmptyState({ label }: { label: string }) {
   return (
     <p
       style={{
-        margin: "20px 0 4px",
+        margin: "16px 0 0",
         fontSize: 13,
-        color: C.faint,
-        fontStyle: "italic",
+        color: "var(--muted)",
       }}
     >
       {label}
@@ -533,14 +507,14 @@ function ErrorBanner({ message }: { message: string }) {
     <div
       style={{
         padding: "12px 16px",
-        background: "rgba(248,113,113,0.08)",
-        border: "1px solid rgba(248,113,113,0.25)",
-        borderRadius: 6,
-        color: "#fca5a5",
+        background: "rgba(239,68,68,0.08)",
+        border: "1px solid rgba(239,68,68,0.25)",
+        borderRadius: "var(--r-sm)",
+        color: "var(--bad)",
         fontSize: 13,
       }}
     >
-      Error: {message}
+      {message}
     </div>
   );
 }
@@ -560,20 +534,20 @@ function Btn({
 }) {
   const styles: Record<string, React.CSSProperties> = {
     default: {
-      background: C.surface,
-      color: C.muted,
-      border: `1px solid ${C.border}`,
+      background: "var(--panel-lift)",
+      color: "var(--text)",
+      border: "1px solid var(--border)",
     },
-    primary: { background: C.orange, color: "#fff", border: "none" },
+    primary: { background: "var(--brand)", color: "#fff", border: "none" },
     danger: {
-      background: "rgba(248,113,113,0.1)",
-      color: C.red,
-      border: "1px solid rgba(248,113,113,0.3)",
+      background: "rgba(239,68,68,0.12)",
+      color: "var(--bad)",
+      border: "1px solid rgba(239,68,68,0.35)",
     },
     ghost: {
       background: "transparent",
-      color: C.dim,
-      border: `1px solid ${C.border}`,
+      color: "var(--muted)",
+      border: "1px solid var(--border)",
     },
   };
   return (
@@ -581,13 +555,11 @@ function Btn({
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: small ? "4px 10px" : "6px 14px",
-        borderRadius: 5,
+        padding: small ? "6px 12px" : "8px 16px",
+        borderRadius: "var(--r-sm)",
         fontFamily: "inherit",
-        fontSize: small ? 11 : 12,
-        fontWeight: 700,
-        letterSpacing: "0.05em",
-        textTransform: "uppercase",
+        fontSize: small ? 12 : 13,
+        fontWeight: 600,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
         ...styles[variant],
@@ -1095,7 +1067,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           hours_st: payload.hours_st,
           hours_ot: payload.hours_ot,
         })
-        .eq("id", draft.id);
+        .eq("id", draft.id)
+        .eq("schedule_version_id", currentVersionId);
       if (error) {
         setLaborError(error.message);
         setSavingRow(false);
@@ -1127,7 +1100,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     const { error } = await supabase
       .from("schedule_labor_weeks")
       .delete()
-      .eq("id", rowId);
+      .eq("id", rowId)
+      .eq("schedule_version_id", currentVersionId);
     if (error) {
       setLaborError(error.message);
       return;
@@ -1181,15 +1155,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorBanner message={error} />;
   if (!project)
-    return <p style={{ color: C.dim, padding: 40 }}>Project not found.</p>;
+    return <p style={{ color: "var(--muted)", padding: 40 }}>Project not found.</p>;
 
   // ─── Main render ───────────────────────────────────────────────────────────
   return (
     <div
+      className="pi-page"
       style={{
-        display: "grid",
-        gap: 16,
-        fontFamily: "'IBM Plex Mono', 'Fira Code', monospace",
+        display: "flex",
+        flexDirection: "column",
+        gap: 24,
         maxWidth: 960,
         width: "100%",
       }}
@@ -1213,27 +1188,28 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       <Link
         href="/projects"
         style={{
-          color: C.dim,
+          color: "var(--muted)",
           textDecoration: "none",
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
+          fontSize: 13,
+          fontWeight: 500,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
-        BACK TO PROJECTS
+        ← Back to Projects
       </Link>
 
       {/* ── Project header ───────────────────────────────────────────────────*/}
       <div
+        className="pi-card-lift"
         style={{
           background:
-            "linear-gradient(135deg, rgba(251,146,60,0.08) 0%, transparent 65%)",
-          border: "1px solid rgba(251,146,60,0.2)",
-          borderRadius: 8,
-          padding: "20px 24px",
+            "linear-gradient(135deg, rgba(251,146,60,0.06) 0%, transparent 60%)",
+          borderColor: "rgba(251,146,60,0.25)",
+          padding: "24px 28px",
           display: "grid",
-          gap: 10,
+          gap: 12,
         }}
       >
         <div
@@ -1244,45 +1220,35 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             flexWrap: "wrap",
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: C.orange,
-              background: "rgba(251,146,60,0.1)",
-              border: "1px solid rgba(251,146,60,0.25)",
-              borderRadius: 4,
-              padding: "2px 10px",
-            }}
-          >
+          <span className="pi-badge pi-badge-warn" style={{ textTransform: "none" }}>
             {project.project_number}
           </span>
           <StatusBadge status={project.status} />
         </div>
         <h1
+          className="pi-page-title"
           style={{
             margin: 0,
-            fontSize: 24,
+            fontSize: 26,
             fontWeight: 700,
-            color: C.primary,
-            lineHeight: 1.25,
-            letterSpacing: "-0.01em",
+            color: "var(--text)",
+            lineHeight: 1.3,
+            letterSpacing: "-0.02em",
           }}
         >
           {project.name}
         </h1>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
           {project.client_name && (
-            <span style={{ fontSize: 13, color: C.muted }}>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
               <span
                 style={{
-                  color: C.faint,
-                  marginRight: 5,
-                  fontSize: 10,
+                  color: "var(--faint)",
+                  marginRight: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
                   textTransform: "uppercase",
-                  letterSpacing: "0.07em",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Client
@@ -1291,14 +1257,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </span>
           )}
           {project.location && (
-            <span style={{ fontSize: 13, color: C.muted }}>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
               <span
                 style={{
-                  color: C.faint,
-                  marginRight: 5,
-                  fontSize: 10,
+                  color: "var(--faint)",
+                  marginRight: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
                   textTransform: "uppercase",
-                  letterSpacing: "0.07em",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Location
@@ -1306,25 +1273,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               {project.location}
             </span>
           )}
-          <span
-            style={{
-              fontSize: 11,
-              color: C.faint,
-              fontFamily: "monospace",
-              alignSelf: "center",
-            }}
-          >
-            {project.id}
-          </span>
         </div>
       </div>
 
       {/* ── KPI cards ────────────────────────────────────────────────────────*/}
-      <div
+      <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-          gap: 12,
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gap: 16,
         }}
       >
         <KpiCard label="Schedule Versions" value={scheduleVersions.length} />
@@ -1333,14 +1290,82 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         <KpiCard label="Total ST Hours" value={grandTotals.hours_st} />
         <KpiCard label="Total OT Hours" value={grandTotals.hours_ot} />
         <KpiCard label="Exposures" value={exposures.length} />
+      </section>
+
+      {/* ── Exposure summary ──────────────────────────────────────────────────*/}
+      <div
+        className="pi-card"
+        style={{
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        {exposures.length > 0 ? (
+          <>
+            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                <strong style={{ color: "var(--text)" }}>
+                  {exposures.length}
+                </strong>{" "}
+                exposure{exposures.length !== 1 ? "s" : ""}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                <strong
+                  style={{
+                    color:
+                      exposures.filter(
+                        (e) => (e.status ?? "").toLowerCase() === "open",
+                      ).length > 0
+                      ? "var(--warn)"
+                      : "var(--text)",
+                  }}
+                >
+                  {
+                    exposures.filter(
+                      (e) => (e.status ?? "").toLowerCase() === "open",
+                    ).length
+                  }
+                </strong>{" "}
+                open
+              </span>
+            </div>
+            <Link
+              href="/exposures"
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--brand)",
+                textDecoration: "none",
+              }}
+            >
+              View all exposures →
+            </Link>
+          </>
+        ) : (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: "var(--muted)",
+              lineHeight: 1.4,
+            }}
+          >
+            Client-driven schedule revisions can create exposures. Create a new
+            version and check &quot;Client-driven revision&quot; to generate one.
+          </p>
+        )}
       </div>
 
-      {/* ── Current version + version history ───────────────────────────────*/}
-      <div
+      {/* ── Schedule & version (primary focus) ─────────────────────────────────*/}
+      <section
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 16,
+          gap: 20,
         }}
       >
         <Panel
@@ -1373,20 +1398,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               <DataRow
                 label="Created"
                 value={formatDateTime(currentVersion.created_at)}
-              />
-              <DataRow
-                label="Version ID"
-                value={
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: C.faint,
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {currentVersion.id}
-                  </span>
-                }
               />
             </div>
           )}
@@ -1433,7 +1444,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </div>
           )}
         </Panel>
-      </div>
+      </section>
 
       {/* ── Weekly Labor Plan ────────────────────────────────────────────────*/}
       <Panel
@@ -1466,24 +1477,24 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     }}
                     disabled={switchLoading}
                     style={{
-                      padding: "4px 10px",
-                      borderRadius: 4,
+                      padding: "6px 12px",
+                      borderRadius: "var(--r-sm)",
                       fontFamily: "inherit",
-                      fontSize: 11,
-                      fontWeight: 700,
+                      fontSize: 12,
+                      fontWeight: 600,
                       cursor: switchLoading ? "not-allowed" : "pointer",
                       border: isActive
-                        ? `1px solid rgba(251,146,60,0.5)`
-                        : `1px solid ${C.border}`,
+                        ? "1px solid rgba(251,146,60,0.5)"
+                        : "1px solid var(--border)",
                       background: isActive
                         ? "rgba(251,146,60,0.12)"
-                        : C.surface,
-                      color: isActive ? C.orange : C.dim,
+                        : "var(--panel-lift)",
+                      color: isActive ? "var(--brand)" : "var(--muted)",
                       opacity: switchLoading ? 0.5 : 1,
                     }}
                   >
                     v{v.version_number}
-                    {v.is_current ? " cur" : ""}
+                    {v.is_current ? " (current)" : ""}
                   </button>
                 );
               })}
@@ -1506,13 +1517,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         {!isViewingCurrent && (
           <div
             style={{
-              margin: "10px 0 4px",
-              padding: "8px 12px",
+              margin: "0 0 16px",
+              padding: "12px 16px",
               background: "rgba(250,204,21,0.06)",
-              border: "1px solid rgba(250,204,21,0.2)",
-              borderRadius: 5,
-              fontSize: 12,
-              color: C.yellow,
+              border: "1px solid rgba(250,204,21,0.25)",
+              borderRadius: "var(--r-sm)",
+              fontSize: 13,
+              color: "var(--warn)",
             }}
           >
             Read-only prior version — switch to the current version to edit.
@@ -1543,7 +1554,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         ) : sortedDates.length === 0 ? (
           <EmptyState label="No labor weeks found for this version." />
         ) : (
-          <div style={{ display: "grid", gap: 12, paddingTop: 8 }}>
+          <div style={{ display: "grid", gap: 16, paddingTop: 12 }}>
             {sortedDates.map((date) => {
               const rows = laborByDate[date];
               const totals = sumWeekRows(rows);
@@ -1551,21 +1562,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <div
                   key={date}
                   style={{
-                    border: `1px solid ${C.borderFaint}`,
-                    borderRadius: 6,
+                    border: "1px solid var(--border-faint)",
+                    borderRadius: "var(--r-sm)",
                     overflow: "hidden",
                   }}
                 >
                   <div
                     style={{
-                      padding: "9px 14px",
-                      background: C.surfaceLift,
-                      borderBottom: `1px solid ${C.borderFaint}`,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      letterSpacing: "0.07em",
-                      textTransform: "uppercase",
-                      color: C.muted,
+                      padding: "12px 16px",
+                      background: "var(--panel-lift)",
+                      borderBottom: "1px solid var(--border-faint)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--muted)",
                     }}
                   >
                     Week of {formatWeekLabel(date)}
@@ -1751,8 +1760,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         )}
       </Panel>
 
-      {/* ── Capacity Forecast ─────────────────────────────────────────────────*/}
-      <Panel title="Capacity Forecast">
+      {/* ── Capacity & Exposures ─────────────────────────────────────────────*/}
+      <div style={{ marginTop: 8 }}>
+        <Panel title="Capacity Forecast">
         {/* ── Section 1: Project Demand ──────────────────────────────────────*/}
         <SectionLabel
           label={`Project Demand — ${isViewingCurrent ? "Current Version" : `v${versionById[viewingVersionId!]?.version_number ?? "?"}`}`}
@@ -1807,7 +1817,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         )}
 
         {/* ── Section 2: Company Capacity Context ───────────────────────────*/}
-        <SectionLabel label="Company Capacity Context (v_capacity_forecast_12w)" />
+        <SectionLabel label="Company Capacity Context" />
         {filteredCapacityRows.length === 0 ? (
           <EmptyState label="No capacity forecast data for the weeks in this labor plan." />
         ) : (
@@ -1923,10 +1933,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             })}
           </div>
         )}
-      </Panel>
+        </Panel>
 
-      {/* ── Financial Exposures ───────────────────────────────────────────────*/}
-      <Panel title="Financial Exposures">
+        <div style={{ marginTop: 24 }}>
+          <Panel title="Financial Exposures">
         {exposures.length === 0 ? (
           <EmptyState label="No exposures found." />
         ) : (
@@ -2085,7 +2095,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             })}
           </div>
         )}
-      </Panel>
+          </Panel>
+        </div>
+      </div>
     </div>
   );
 }
