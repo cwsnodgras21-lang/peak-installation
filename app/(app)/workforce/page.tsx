@@ -30,21 +30,13 @@ export default async function WorkforcePage() {
   console.log("PERSONNEL:", personnel);
 
   return (
-    <div
-      style={{
-        padding: "24px",
-        background: "#0d0d0d",
-        minHeight: "100vh",
-        color: "#e5e5e5",
-      }}
-    >
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-        Workforce
-      </h1>
-      <p style={{ color: "#666", fontSize: 13, marginBottom: 24 }}>
-        {personnel.length} personnel &mdash;{" "}
-        {personnel.filter((p) => p.active).length} active
-      </p>
+    <div>
+      <header className="pi-page-header">
+        <h1 className="pi-page-title">Workforce</h1>
+        <p className="pi-page-desc">
+          {personnel.length} personnel &mdash; {personnel.filter((p) => p.active).length} active
+        </p>
+      </header>
 
       <PersonnelTableShellClient
         tenantId={tenantId}

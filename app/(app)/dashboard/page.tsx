@@ -94,144 +94,265 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 24, marginBottom: 20 }}>Capacity Dashboard</h1>
+    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+      <header className="pi-page-header" style={{ marginBottom: 4 }}>
+        <h1 className="pi-page-title" style={{ fontSize: 24, marginBottom: 6 }}>
+          Capacity Dashboard
+        </h1>
+        <p className="pi-page-desc">
+          Forecast and capacity issues for the next 8–12 weeks.
+        </p>
+      </header>
 
-      {loading && <p>Loading forecast...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {loading && (
+        <p className="pi-page-desc" style={{ padding: "24px 0" }}>
+          Loading forecast…
+        </p>
+      )}
+      {error && (
+        <p style={{ color: "var(--bad)", padding: "12px 0" }}>{error}</p>
+      )}
 
       {!loading && !error && (
         <>
-          {/* KPI BAR */}
-
-          <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
+          {/* KPI row */}
+          <section
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              gap: 16,
+            }}
+          >
             <div
+              className="pi-stat"
               style={{
-                background: "#1a1a1a",
-                padding: 16,
-                border: "1px solid #333",
-                borderRadius: 6,
+                minWidth: 0,
+                borderLeft: "3px solid var(--border)",
               }}
             >
-              <div style={{ fontSize: 12, opacity: 0.7 }}>Risk Weeks</div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>{riskWeeks}</div>
-            </div>
-
-            <div
-              style={{
-                background: "#1a1a1a",
-                padding: 16,
-                border: "1px solid #333",
-                borderRadius: 6,
-              }}
-            >
-              <div style={{ fontSize: 12, opacity: 0.7 }}>
-                Max Installer Shortage
+              <div className="pi-stat-label">Risk Weeks</div>
+              <div className="pi-stat-value" style={{ fontSize: 22 }}>
+                {riskWeeks}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>
+            </div>
+            <div
+              className="pi-stat"
+              style={{
+                minWidth: 0,
+                borderLeft:
+                  maxInstallerShortage < 0
+                    ? "3px solid var(--bad)"
+                    : "3px solid var(--border)",
+              }}
+            >
+              <div className="pi-stat-label">Max Installer Shortage</div>
+              <div
+                className="pi-stat-value"
+                style={{
+                  fontSize: 22,
+                  color:
+                    maxInstallerShortage < 0 ? "var(--bad)" : "var(--text)",
+                }}
+              >
                 {maxInstallerShortage}
               </div>
             </div>
-
             <div
+              className="pi-stat"
               style={{
-                background: "#1a1a1a",
-                padding: 16,
-                border: "1px solid #333",
-                borderRadius: 6,
+                minWidth: 0,
+                borderLeft: "3px solid var(--border)",
               }}
             >
-              <div style={{ fontSize: 12, opacity: 0.7 }}>
-                Installer Demand (8w)
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700 }}>
+              <div className="pi-stat-label">Installer Demand (8w)</div>
+              <div className="pi-stat-value" style={{ fontSize: 22 }}>
                 {installerDemand}
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* CAPACITY ISSUES */}
-
+          {/* Capacity issues — elevated when present */}
           {shortages.length > 0 && (
-            <div
+            <section
+              className="pi-card-lift"
               style={{
-                background: "#1a1a1a",
-                padding: 16,
-                borderRadius: 6,
-                marginBottom: 24,
-                border: "1px solid #333",
+                marginBottom: 0,
+                borderColor: "rgba(245, 158, 11, 0.35)",
+                background: "rgba(245, 158, 11, 0.04)",
               }}
             >
-              <h2 style={{ marginBottom: 10 }}>⚠ Capacity Issues</h2>
+              <h2
+                className="pi-section-title"
+                style={{
+                  color: "var(--warn)",
+                  marginBottom: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "var(--warn)",
+                  }}
+                />
+                Capacity Issues ({shortages.length})
+              </h2>
 
-              {shortages.map((row, i) => {
-                const projects =
-                  row.labor_role === "Installer"
-                    ? getProjectsForWeek(row.week_start_date)
-                    : [];
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {shortages.map((row, i) => {
+                  const projects =
+                    row.labor_role === "Installer"
+                      ? getProjectsForWeek(row.week_start_date)
+                      : [];
 
-                return (
-                  <div key={i} style={{ marginBottom: 12 }}>
-                    <div>
-                      <strong>{row.week_start_date}</strong> — {row.labor_role}{" "}
-                      shortage ({row.net_headcount})
-                    </div>
-
-                    {projects.map((p, idx) => (
-                      <div
-                        key={idx}
-                        style={{ paddingLeft: 12, fontSize: 13, opacity: 0.9 }}
-                      >
-                        {p.project_number} — {p.project_name} →{" "}
-                        {p.demand_headcount} installers
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* FORECAST TABLE */}
-
-          <h2 style={{ marginBottom: 10 }}>Capacity Forecast</h2>
-
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-          >
-            <thead>
-              <tr style={{ borderBottom: "1px solid #333" }}>
-                <th align="left">Week</th>
-                <th align="left">Role</th>
-                <th align="right">Demand HC</th>
-                <th align="right">Available HC</th>
-                <th align="right">Net HC</th>
-                <th align="left">Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid #222" }}>
-                  <td>{row.week_start_date}</td>
-                  <td>{row.labor_role}</td>
-                  <td align="right">{row.demand_headcount}</td>
-                  <td align="right">{row.available_headcount}</td>
-                  <td align="right">{row.net_headcount}</td>
-                  <td>
-                    <span
+                  return (
+                    <div
+                      key={i}
                       style={{
-                        color: statusColor(row.status),
-                        fontWeight: 600,
+                        padding: "12px 14px",
+                        background: "rgba(0,0,0,0.2)",
+                        borderRadius: "var(--r-sm)",
+                        border: "1px solid var(--border-faint)",
                       }}
                     >
-                      {row.status.toUpperCase()}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 14,
+                          marginBottom: projects.length > 0 ? 8 : 0,
+                        }}
+                      >
+                        <span style={{ color: "var(--muted)" }}>
+                          {row.week_start_date}
+                        </span>
+                        {" · "}
+                        <span>{row.labor_role}</span>
+                        {" shortage "}
+                        <span
+                          style={{
+                            color: "var(--bad)",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {row.net_headcount}
+                        </span>
+                      </div>
+
+                      {projects.length > 0 && (
+                        <ul
+                          style={{
+                            margin: 0,
+                            paddingLeft: 18,
+                            fontSize: 13,
+                            color: "var(--muted)",
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {projects.map((p, idx) => (
+                            <li key={idx}>
+                              <span style={{ color: "var(--text)" }}>
+                                {p.project_number}
+                              </span>
+                              {" — "}
+                              {p.project_name}
+                              {" → "}
+                              <span
+                                style={{
+                                  fontVariantNumeric: "tabular-nums",
+                                  color: "var(--text)",
+                                }}
+                              >
+                                {p.demand_headcount}
+                              </span>{" "}
+                              installers
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Forecast table */}
+          <section className="pi-card-lift" style={{ overflow: "hidden" }}>
+            <h2
+              className="pi-section-title"
+              style={{ marginBottom: 16 }}
+            >
+              Capacity Forecast
+            </h2>
+            <div className="pi-table-wrap">
+              <table className="pi-table pi-table-dashboard">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>Role</th>
+                    <th style={{ textAlign: "right", width: 90 }}>
+                      Demand HC
+                    </th>
+                    <th style={{ textAlign: "right", width: 90 }}>
+                      Available HC
+                    </th>
+                    <th style={{ textAlign: "right", width: 80 }}>Net HC</th>
+                    <th style={{ width: 90 }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={i}>
+                      <td
+                        style={{
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {row.week_start_date}
+                      </td>
+                      <td>{row.labor_role}</td>
+                      <td style={{ textAlign: "right" }}>
+                        {row.demand_headcount}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {row.available_headcount}
+                      </td>
+                      <td
+                        style={{
+                          textAlign: "right",
+                          fontWeight: 600,
+                          color:
+                            Number(row.net_headcount ?? 0) < 0
+                              ? "var(--bad)"
+                              : "var(--text)",
+                        }}
+                      >
+                        {row.net_headcount}
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            row.status === "red"
+                              ? "pi-badge pi-badge-bad"
+                              : row.status === "yellow"
+                                ? "pi-badge pi-badge-warn"
+                                : "pi-badge pi-badge-good"
+                          }
+                        >
+                          {row.status.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </>
       )}
     </div>

@@ -1,4 +1,4 @@
-// app/(app)/layout.tsx
+// Shared app shell: sidebar + main. All (app) routes get this layout.
 import Link from "next/link";
 import Image from "next/image";
 
@@ -10,7 +10,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       style={{
         minHeight: "100vh",
         background: "linear-gradient(135deg,#0b0b0f,#14141c)",
-        color: "#e5e7eb",
+        color: "var(--text)",
         fontFamily:
           "Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
       }}
@@ -21,7 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             position: "sticky",
             top: 0,
             height: "100vh",
-            borderRight: "1px solid #232334",
+            borderRight: "1px solid var(--border)",
             background: "rgba(10,10,14,0.85)",
             padding: 18,
           }}
@@ -39,8 +39,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 width: 42,
                 height: 42,
                 borderRadius: 12,
-                border: "1px solid #2b2b3a",
-                background: "#0f1720",
+                border: "1px solid var(--border)",
+                background: "var(--bg-subtle)",
                 display: "grid",
                 placeItems: "center",
                 overflow: "hidden",
@@ -55,7 +55,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 priority
               />
             </div>
-
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
@@ -84,12 +83,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div>
-          <div
+          <header
             style={{
               position: "sticky",
               top: 0,
               zIndex: 5,
-              borderBottom: "1px solid #232334",
+              borderBottom: "1px solid var(--border)",
               background: "rgba(11,11,15,0.75)",
               backdropFilter: "blur(10px)",
               padding: "14px 18px",
@@ -103,12 +102,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 alignItems: "center",
               }}
             >
-              <div style={{ fontWeight: 800 }}>Capacity Dashboard</div>
+              <span style={{ fontWeight: 800 }}>Peak Installation</span>
             </div>
-          </div>
+          </header>
 
           <main style={{ padding: 18 }}>
-            <div style={{ maxWidth: 1180, margin: "0 auto" }}>{children}</div>
+            <div className="pi-page">{children}</div>
           </main>
         </div>
       </div>
@@ -127,7 +126,7 @@ function NavItem({ href, label }: { href: string; label: string }) {
         padding: "10px 10px",
         borderRadius: 12,
         border: "1px solid transparent",
-        color: "#e5e7eb",
+        color: "var(--text)",
         textDecoration: "none",
         marginBottom: 8,
         background: "rgba(255,255,255,0.02)",
@@ -138,7 +137,7 @@ function NavItem({ href, label }: { href: string; label: string }) {
           width: 10,
           height: 10,
           borderRadius: 3,
-          background: "#ff8c00",
+          background: "var(--brand)",
         }}
       />
       <span style={{ fontWeight: 650 }}>{label}</span>

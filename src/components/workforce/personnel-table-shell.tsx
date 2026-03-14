@@ -8,7 +8,7 @@ import type {
   AssignmentRollup,
   LaborRole,
   PersonWeekAssignment,
-} from "@/lib/types/workforce";
+} from "@/src/lib/types/workforce";
 
 type Props = {
   tenantId: string;
@@ -66,6 +66,12 @@ export function PersonnelTableShellClient({
   function handleSelectPerson(personId: string) {
     setSelectedPersonId(personId);
     setIsDetailModalOpen(true);
+  }
+
+  function handleCloseDetailModal() {
+    setIsDetailModalOpen(false);
+    setSelectedPersonId(null);
+    setPersonWeeks([]);
   }
 
   return (
@@ -140,7 +146,7 @@ export function PersonnelTableShellClient({
               </h2>
               <button
                 type="button"
-                onClick={() => setIsDetailModalOpen(false)}
+                onClick={handleCloseDetailModal}
                 className={ghostBtnClass}
               >
                 Close

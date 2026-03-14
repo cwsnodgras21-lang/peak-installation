@@ -7,13 +7,14 @@ import type {
   PersonnelWithRole,
   AssignmentRollup,
   LaborRole,
-} from "@/lib/types/workforce";
+} from "@/src/lib/types/workforce";
 
 type Props = {
   personnel: PersonnelWithRole[];
   rollups: AssignmentRollup[];
   laborRoles: LaborRole[];
   onSelectPerson: (id: string) => void;
+  selectedPersonId?: string | null;
 };
 
 export function PersonnelTable({
@@ -21,6 +22,7 @@ export function PersonnelTable({
   rollups,
   laborRoles,
   onSelectPerson,
+  selectedPersonId,
 }: Props) {
   const [roleFilter, setRoleFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState<
@@ -37,12 +39,11 @@ export function PersonnelTable({
   });
 
   return (
-    <div>
+    <div className="space-y-3">
       <div
         style={{
           display: "flex",
-          gap: 8,
-          marginBottom: 12,
+          gap: 12,
           flexWrap: "wrap",
           alignItems: "center",
         }}
@@ -72,14 +73,14 @@ export function PersonnelTable({
           <option value="inactive">Inactive</option>
         </select>
 
-        <span style={{ color: "#666", fontSize: 12 }}>
+        <span style={countText}>
           {visible.length} / {personnel.length}
         </span>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
+      <div style={tableWrap}>
         <table
-          style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
+          style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
         >
           <thead>
             <tr style={{ background: "#161616", textAlign: "left" }}>
@@ -101,20 +102,33 @@ export function PersonnelTable({
               <tr>
                 <td
                   colSpan={5}
-                  style={{ padding: 16, color: "#555", textAlign: "center" }}
+                  style={{ padding: 16, color: "#666", textAlign: "center" }}
                 >
                   No results.
                 </td>
               </tr>
             )}
+
             {visible.map((p) => {
               const rollup = rollupById[p.id];
+              const isSelected = selectedPersonId === p.id;
+
               return (
-                <tr key={p.id} style={{ borderBottom: "1px solid #1e1e1e" }}>
+                <tr
+                  key={p.id}
+                  style={{
+                    ...row,
+                    ...(isSelected ? selectedRow : {}),
+                  }}
+                >
                   <td style={td}>
                     <button
+                      type="button"
                       onClick={() => onSelectPerson(p.id)}
-                      style={nameBtn}
+                      style={{
+                        ...nameBtn,
+                        ...(isSelected ? selectedNameBtn : {}),
+                      }}
                     >
                       {p.full_name}
                     </button>
@@ -137,46 +151,79 @@ export function PersonnelTable({
   );
 }
 
-const sel: React.CSSProperties = {
-  background: "#1a1a1a",
-  border: "1px solid #333",
-  color: "#ccc",
-  padding: "5px 8px",
-  borderRadius: 4,
-  fontSize: 13,
+const tableWrap: React.CSSProperties = {
+  overflowX: "auto",
+  border: "1px solid #1f1f1f",
+  borderRadius: 12,
+  background: "#0b0b0b",
 };
+
+const sel: React.CSSProperties = {
+  background: "#18181b",
+  border: "1px solid #2f2f2f",
+  color: "#e4e4e7",
+  padding: "10px 14px",
+  borderRadius: 10,
+  fontSize: 14,
+  minWidth: 140,
+};
+
+const countText: React.CSSProperties = {
+  color: "#71717a",
+  fontSize: 14,
+};
+
 const th: React.CSSProperties = {
-  padding: "8px 12px",
-  color: "#888",
+  padding: "14px 18px",
+  color: "#a1a1aa",
   fontWeight: 600,
-  borderBottom: "1px solid #2a2a2a",
+  borderBottom: "1px solid #232323",
   whiteSpace: "nowrap",
 };
+
 const td: React.CSSProperties = {
-  padding: "7px 12px",
-  color: "#ddd",
+  padding: "14px 18px",
+  color: "#f4f4f5",
   verticalAlign: "middle",
 };
+
+const row: React.CSSProperties = {
+  borderBottom: "1px solid #1a1a1a",
+};
+
+const selectedRow: React.CSSProperties = {
+  background: "rgba(249, 115, 22, 0.10)",
+};
+
 const nameBtn: React.CSSProperties = {
   background: "none",
   border: "none",
   color: "#f97316",
   cursor: "pointer",
-  fontSize: 13,
+  fontSize: 14,
+  fontWeight: 600,
   padding: 0,
-  textDecoration: "underline",
+  textDecoration: "none",
 };
+
+const selectedNameBtn: React.CSSProperties = {
+  color: "#fb923c",
+};
+
 const activeBadge: React.CSSProperties = {
   background: "#14532d",
   color: "#86efac",
-  padding: "1px 7px",
-  borderRadius: 3,
-  fontSize: 11,
+  padding: "3px 9px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
 };
+
 const inactiveBadge: React.CSSProperties = {
   background: "#27272a",
-  color: "#71717a",
-  padding: "1px 7px",
-  borderRadius: 3,
-  fontSize: 11,
+  color: "#a1a1aa",
+  padding: "3px 9px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
 };
