@@ -117,6 +117,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               label="Reports"
               active={pathname === "/reports"}
             />
+            <NavItem
+              href="/help"
+              label="Help"
+              active={pathname === "/help"}
+            />
           </nav>
 
           <div

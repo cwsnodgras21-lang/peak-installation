@@ -95,6 +95,11 @@ body {
   background: rgba(255, 140, 0, 0.26);
 }
 
+.pi-btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 /* App shell nav */
 .app-nav-item:hover {
   color: var(--text) !important;
