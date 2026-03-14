@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
 export async function GET(
-  _req: Request,
-  { params }: { params: { personId: string } },
+  _req: NextRequest,
+  context: { params: Promise<{ personId: string }> },
 ) {
-  const personId = params.personId;
+  const { personId } = await context.params;
 
   const { searchParams } = new URL(_req.url);
   const tenantId = searchParams.get("tenantId");

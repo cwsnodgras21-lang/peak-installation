@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { EditExposureModal } from "../components/EditExposureModal";
+import {
+  CreateChangeOrderModal,
+  type PrefillFromExposure,
+} from "../components/CreateChangeOrderModal";
 
 type Exposure = {
   id: string;
@@ -29,14 +34,45 @@ function statusBadgeClass(status: string | null): string {
   return "pi-badge";
 }
 
+function coStatusBadgeClass(status: string | null): string {
+  if (!status) return "pi-badge";
+  const s = status.toLowerCase();
+  if (s === "approved" || s === "billed") return "pi-badge pi-badge-good";
+  if (s === "submitted" || s === "draft") return "pi-badge pi-badge-warn";
+  if (s === "cancelled") return "pi-badge pi-badge-bad";
+  return "pi-badge";
+}
+
 type StatusFilter = "all" | "open" | "pending" | "closed";
+
+const EXPOSURE_STATUSES = ["open", "pending", "closed"] as const;
 
 export default function ExposuresPage() {
   const [loading, setLoading] = useState(true);
   const [exposures, setExposures] = useState<Exposure[]>([]);
   const [projects, setProjects] = useState<Record<string, ProjectRef>>({});
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [exposureToast, setExposureToast] = useState<string | null>(null);
+  const [editingExposure, setEditingExposure] = useState<Exposure | null>(null);
+  const [editingExposureSaving, setEditingExposureSaving] = useState(false);
+  const [editingExposureError, setEditingExposureError] = useState<string | null>(
+    null,
+  );
+  const [editingExposureCurrentVersionId, setEditingExposureCurrentVersionId] =
+    useState<string | null>(null);
+  const [editingExposureLinkedLabel, setEditingExposureLinkedLabel] = useState<
+    string | null
+  >(null);
+  const [createCOFromExposure, setCreateCOFromExposure] =
+    useState<Exposure | null>(null);
+  const [createCOSaving, setCreateCOSaving] = useState(false);
+  const [createCOError, setCreateCOError] = useState<string | null>(null);
+  const [coByExposureId, setCoByExposureId] = useState<
+    Record<string, { co_number: string; id: string; status: string }>
+  >({});
 
   useEffect(() => {
     load();
@@ -64,8 +100,9 @@ export default function ExposuresPage() {
       setLoading(false);
       return;
     }
+    setTenantId(profile.tenant_id);
 
-    const { data: expData, error: expErr } = await supabase
+    const { data: expRaw, error: expErr } = await supabase
       .from("financial_exposures")
       .select(
         "id, project_id, schedule_version_id, title, description, cause_type, " +
@@ -80,9 +117,10 @@ export default function ExposuresPage() {
       return;
     }
 
-    setExposures((expData ?? []) as Exposure[]);
+    const expData = (expRaw ?? []) as unknown as Exposure[];
+    setExposures(expData);
 
-    const projectIds = [...new Set((expData ?? []).map((e: Exposure) => e.project_id))];
+    const projectIds = [...new Set(expData.map((e) => e.project_id))];
     if (projectIds.length > 0) {
       const { data: projData } = await supabase
         .from("projects")
@@ -94,6 +132,23 @@ export default function ExposuresPage() {
       });
       setProjects(map);
     }
+
+    const { data: coData } = await supabase
+      .from("change_orders")
+      .select("id, co_number, financial_exposure_id, status")
+      .not("financial_exposure_id", "is", null);
+    const coMap: Record<string, { co_number: string; id: string; status: string }> = {};
+    ((coData ?? []) as { financial_exposure_id: string; co_number: string; id: string; status: string }[]).forEach(
+      (c) => {
+        if (c.financial_exposure_id)
+          coMap[c.financial_exposure_id] = {
+            co_number: c.co_number,
+            id: c.id,
+            status: c.status ?? "draft",
+          };
+      },
+    );
+    setCoByExposureId(coMap);
 
     setLoading(false);
   }
@@ -114,6 +169,121 @@ export default function ExposuresPage() {
       currency: "USD",
       maximumFractionDigits: 0,
     }).format(value);
+  }
+
+  async function openEditExposure(exp: Exposure) {
+    setEditingExposureError(null);
+    setEditingExposure(exp);
+    setEditingExposureLinkedLabel(null);
+    setEditingExposureCurrentVersionId(null);
+    const { data: versions } = await supabase
+      .from("schedule_versions")
+      .select("id, version_number, is_current")
+      .eq("project_id", exp.project_id)
+      .order("version_number", { ascending: false });
+    const current = (versions ?? []).find((v: { is_current: boolean }) => v.is_current);
+    const linked = exp.schedule_version_id
+      ? (versions ?? []).find((v: { id: string }) => v.id === exp.schedule_version_id)
+      : null;
+    setEditingExposureCurrentVersionId(current?.id ?? null);
+    setEditingExposureLinkedLabel(linked ? `v${linked.version_number}` : null);
+  }
+
+  async function handleEditExposure(draft: {
+    title: string;
+    cause_type: string;
+    laborHoursDelta: string;
+    laborCostDelta: string;
+    materialCostDelta: string;
+    scheduleVersionChoice: "keep" | "attach" | "clear";
+  }) {
+    if (!tenantId || !editingExposure) return;
+    setEditingExposureSaving(true);
+    setEditingExposureError(null);
+    let scheduleVersionId: string | null = editingExposure.schedule_version_id;
+    if (draft.scheduleVersionChoice === "attach" && editingExposureCurrentVersionId)
+      scheduleVersionId = editingExposureCurrentVersionId;
+    else if (draft.scheduleVersionChoice === "clear")
+      scheduleVersionId = null;
+    const { error } = await supabase
+      .from("financial_exposures")
+      .update({
+        title: draft.title,
+        cause_type: draft.cause_type,
+        estimated_labor_hours_delta: numOrNull(draft.laborHoursDelta) ?? 0,
+        estimated_labor_cost_delta: numOrNull(draft.laborCostDelta) ?? 0,
+        estimated_material_cost_delta: numOrNull(draft.materialCostDelta) ?? 0,
+        schedule_version_id: scheduleVersionId,
+      })
+      .eq("id", editingExposure.id)
+      .eq("tenant_id", tenantId);
+    setEditingExposureSaving(false);
+    if (error) {
+      setEditingExposureError(error.message);
+      return;
+    }
+    setEditingExposure(null);
+    setExposureToast("Exposure updated.");
+    setTimeout(() => setExposureToast(null), 4000);
+    await load();
+  }
+
+  function numOrNull(val: string): number | null {
+    if (val === "" || val == null) return null;
+    const n = Number(val);
+    return isNaN(n) ? null : n;
+  }
+
+  async function handleCreateCOFromExposure(draft: {
+    project_id: string;
+    financial_exposure_id: string | null;
+    co_number: string;
+    title: string;
+    status: string;
+    amount: string;
+  }) {
+    if (!tenantId) return;
+    setCreateCOSaving(true);
+    setCreateCOError(null);
+    const amountNum = Number(draft.amount);
+    const { error } = await supabase.from("change_orders").insert({
+      tenant_id: tenantId,
+      project_id: draft.project_id,
+      financial_exposure_id: draft.financial_exposure_id || null,
+      co_number: draft.co_number,
+      title: draft.title,
+      status: draft.status,
+      amount: isNaN(amountNum) ? 0 : Math.max(0, amountNum),
+    });
+    setCreateCOSaving(false);
+    if (error) {
+      setCreateCOError(error.message);
+      return;
+    }
+    setCreateCOFromExposure(null);
+    setExposureToast("Change order created from exposure.");
+    setTimeout(() => setExposureToast(null), 4000);
+    await load();
+  }
+
+  async function updateExposureStatus(expId: string, newStatus: string) {
+    if (!tenantId || !EXPOSURE_STATUSES.includes(newStatus as (typeof EXPOSURE_STATUSES)[number]))
+      return;
+    setStatusUpdatingId(expId);
+    const { error } = await supabase
+      .from("financial_exposures")
+      .update({ status: newStatus })
+      .eq("id", expId)
+      .eq("tenant_id", tenantId);
+    setStatusUpdatingId(null);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setError(null);
+    setExposureToast("Exposure status updated.");
+    setTimeout(() => setExposureToast(null), 4000);
+    await load();
   }
 
   // Filter exposures client-side (KPIs stay on full dataset)
@@ -137,13 +307,99 @@ export default function ExposuresPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      <header className="pi-page-header" style={{ marginBottom: 4 }}>
-        <h1 className="pi-page-title" style={{ fontSize: 24, marginBottom: 6 }}>
-          Exposures
-        </h1>
-        <p className="pi-page-desc">
-          Financial exposures from schedule revisions and scope changes.
-        </p>
+      {createCOFromExposure && (
+        <CreateChangeOrderModal
+          projects={Object.values(projects)}
+          exposures={exposures.map((x) => ({
+            id: x.id,
+            project_id: x.project_id,
+            title: x.title,
+          }))}
+          selectedProjectId={createCOFromExposure.project_id}
+          prefillFromExposure={{
+            id: createCOFromExposure.id,
+            project_id: createCOFromExposure.project_id,
+            title: createCOFromExposure.title,
+            estimated_labor_cost_delta: createCOFromExposure.estimated_labor_cost_delta,
+            estimated_material_cost_delta:
+              createCOFromExposure.estimated_material_cost_delta,
+          }}
+          saving={createCOSaving}
+          error={createCOError}
+          onSave={handleCreateCOFromExposure}
+          onCancel={() => {
+            setCreateCOFromExposure(null);
+            setCreateCOError(null);
+          }}
+        />
+      )}
+      {editingExposure && (
+        <EditExposureModal
+          exposure={editingExposure}
+          currentVersionId={editingExposureCurrentVersionId}
+          linkedVersionLabel={editingExposureLinkedLabel}
+          saving={editingExposureSaving}
+          error={editingExposureError}
+          onSave={handleEditExposure}
+          onCancel={() => {
+            setEditingExposure(null);
+            setEditingExposureError(null);
+          }}
+        />
+      )}
+      {exposureToast && (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 90,
+            background: "var(--panel-lift)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "12px 20px",
+            fontSize: 13,
+            color: "var(--text)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          {exposureToast}
+        </div>
+      )}
+      <header
+        className="pi-page-header"
+        style={{
+          marginBottom: 4,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 16,
+        }}
+      >
+        <div>
+          <h1 className="pi-page-title" style={{ fontSize: 24, marginBottom: 6 }}>
+            Exposures
+          </h1>
+          <p className="pi-page-desc">
+            Financial exposures from schedule revisions and scope changes.
+          </p>
+        </div>
+        <Link
+          href="/help#page-guide"
+          style={{
+            fontSize: 12,
+            color: "var(--muted)",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ opacity: 0.7 }}>?</span> Help
+        </Link>
       </header>
 
       {error && (
@@ -299,6 +555,7 @@ export default function ExposuresPage() {
                       Material $ Δ
                     </th>
                     <th style={{ width: 110 }}>Created</th>
+                    <th style={{ width: 120 }}>CO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -356,14 +613,38 @@ export default function ExposuresPage() {
                         )}
                       </td>
                       <td>
-                        <span
+                        <select
+                          value={
+                            ["open", "pending", "closed"].includes(
+                              (e.status ?? "").toLowerCase(),
+                            )
+                              ? (e.status ?? "").toLowerCase()
+                              : "open"
+                          }
+                          onChange={(ev) => {
+                            const v = ev.target.value;
+                            if (v && ["open", "pending", "closed"].includes(v))
+                              updateExposureStatus(e.id, v);
+                          }}
+                          disabled={statusUpdatingId === e.id}
                           className={statusBadgeClass(e.status)}
                           style={{
+                            padding: "4px 8px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: "0.06em",
                             textTransform: "capitalize",
+                            border: "1px solid rgba(0,0,0,0.15)",
+                            borderRadius: 4,
+                            cursor:
+                              statusUpdatingId === e.id ? "not-allowed" : "pointer",
+                            minWidth: 90,
                           }}
                         >
-                          {e.status ?? "—"}
-                        </span>
+                          <option value="open">Open</option>
+                          <option value="pending">Pending</option>
+                          <option value="closed">Closed</option>
+                        </select>
                       </td>
                       <td
                         style={{
@@ -406,6 +687,74 @@ export default function ExposuresPage() {
                         }}
                       >
                         {formatDate(e.created_at)}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                          {coByExposureId[e.id] ? (
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <Link
+                                href="/change-orders"
+                                title="Linked change order"
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: "var(--brand)",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                {coByExposureId[e.id].co_number}
+                              </Link>
+                              <span
+                                className={coStatusBadgeClass(coByExposureId[e.id].status)}
+                                style={{
+                                  padding: "2px 6px",
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.05em",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {coByExposureId[e.id].status}
+                              </span>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCreateCOError(null);
+                                setCreateCOFromExposure(e);
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                background: "transparent",
+                                color: "var(--brand)",
+                                border: "1px solid var(--border)",
+                                borderRadius: "var(--r-xs)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Create CO
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEditExposure(e)}
+                            style={{
+                              padding: "4px 10px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: "transparent",
+                              color: "var(--brand)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "var(--r-sm)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

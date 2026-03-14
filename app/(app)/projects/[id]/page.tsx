@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { EditExposureModal } from "../../components/EditExposureModal";
+import { CreateChangeOrderModal } from "../../components/CreateChangeOrderModal";
 
 // ─── Route props ──────────────────────────────────────────────────────────────
 type ProjectDetailPageProps = {
@@ -69,6 +72,15 @@ type CapacityRow = {
   available_headcount: number | null;
   net_headcount: number | null;
   status: string | null;
+};
+
+type ContributingDemandRow = {
+  project_number: string;
+  project_name: string;
+  version_number: number;
+  labor_role: string;
+  demand_headcount: number;
+  demand_hours: number;
 };
 
 // Grouped project demand row (derived, not from DB)
@@ -152,6 +164,17 @@ function sumWeekRows(rows: LaborWeek[]) {
     },
     { headcount: 0, hours_st: 0, hours_ot: 0 },
   );
+}
+
+function validateLaborDraft(draft: LaborRowDraft): string | null {
+  if (!draft.labor_role_id) return "Labor role is required.";
+  const hc = Number(draft.headcount);
+  const st = Number(draft.hours_st);
+  const ot = Number(draft.hours_ot);
+  if (isNaN(hc) || hc < 0) return "Headcount must be 0 or greater.";
+  if (isNaN(st) || st < 0) return "ST hours must be 0 or greater.";
+  if (isNaN(ot) || ot < 0) return "OT hours must be 0 or greater.";
+  return null;
 }
 
 function numOrNull(val: string): number | null {
@@ -284,6 +307,15 @@ const STATUS_MAP: Record<string, { bg: string; text: string; border: string }> =
       border: "rgba(250,204,21,0.3)",
     },
   };
+
+function coStatusBadgeClass(status: string | null): string {
+  if (!status) return "pi-badge";
+  const s = status.toLowerCase();
+  if (s === "approved" || s === "billed") return "pi-badge pi-badge-good";
+  if (s === "submitted" || s === "draft") return "pi-badge pi-badge-warn";
+  if (s === "cancelled") return "pi-badge pi-badge-bad";
+  return "pi-badge";
+}
 
 // ─── Shared UI components ─────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -570,21 +602,35 @@ function Btn({
   );
 }
 
+// ─── Revision reason (for Create New Version) ──────────────────────────────────
+type RevisionReason =
+  | "internal"
+  | "client_driven"
+  | "scope_change"
+  | "other";
+
+const REVISION_OPTIONS: { value: RevisionReason; label: string; createsExposure?: boolean }[] = [
+  { value: "internal", label: "Internal planning adjustment" },
+  { value: "client_driven", label: "Client-driven schedule change", createsExposure: true },
+  { value: "scope_change", label: "Scope change", createsExposure: true },
+  { value: "other", label: "Other" },
+];
+
 // ─── Create version modal ─────────────────────────────────────────────────────
 function CreateVersionModal({
   currentVersionNum,
   creating,
   createError,
-  clientDriven,
-  onClientDrivenChange,
+  revisionReason,
+  onRevisionReasonChange,
   onConfirm,
   onCancel,
 }: {
   currentVersionNum: number;
   creating: boolean;
   createError: string | null;
-  clientDriven: boolean;
-  onClientDrivenChange: (v: boolean) => void;
+  revisionReason: RevisionReason;
+  onRevisionReasonChange: (v: RevisionReason) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -631,47 +677,66 @@ function CreateVersionModal({
             <strong style={{ color: C.primary }}>v{currentVersionNum}</strong>.
             The previous version becomes read-only.
           </p>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              fontSize: 13,
-              color: C.muted,
-              cursor: "pointer",
-              padding: "12px 14px",
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 6,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={clientDriven}
-              onChange={(e) => onClientDrivenChange(e.target.checked)}
+          <div style={{ display: "grid", gap: 8 }}>
+            <span
               style={{
-                width: 15,
-                height: 15,
-                accentColor: C.orange,
-                cursor: "pointer",
-                marginTop: 1,
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.muted,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
               }}
-            />
-            <span>
-              Client-driven revision
-              <span
+            >
+              Revision Reason
+            </span>
+            {REVISION_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
                 style={{
-                  display: "block",
-                  fontSize: 11,
-                  color: C.faint,
-                  marginTop: 2,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  fontSize: 13,
+                  color: C.muted,
+                  cursor: "pointer",
+                  padding: "12px 14px",
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 6,
                 }}
               >
-                Creates an open financial exposure linked to v
-                {currentVersionNum}.
-              </span>
-            </span>
-          </label>
+                <input
+                  type="radio"
+                  name="revisionReason"
+                  checked={revisionReason === opt.value}
+                  onChange={() => onRevisionReasonChange(opt.value)}
+                  style={{
+                    width: 15,
+                    height: 15,
+                    accentColor: C.orange,
+                    cursor: "pointer",
+                    marginTop: 1,
+                  }}
+                />
+                <span>
+                  {opt.label}
+                  {opt.createsExposure && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: 11,
+                        color: C.faint,
+                        marginTop: 2,
+                      }}
+                    >
+                      Creates an open financial exposure linked to v
+                      {currentVersionNum + 1}.
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </div>
           {createError && <ErrorBanner message={createError} />}
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -695,6 +760,8 @@ function LaborRowForm({
   onDraftChange,
   onSave,
   onCancel,
+  weekStartReadOnly = false,
+  validationError,
 }: {
   draft: LaborRowDraft;
   laborRoles: LaborRole[];
@@ -702,6 +769,8 @@ function LaborRowForm({
   onDraftChange: (d: LaborRowDraft) => void;
   onSave: () => void;
   onCancel: () => void;
+  weekStartReadOnly?: boolean;
+  validationError?: string | null;
 }) {
   const inputStyle: React.CSSProperties = {
     background: "#0f172a",
@@ -714,6 +783,7 @@ function LaborRowForm({
     width: "100%",
     boxSizing: "border-box",
   };
+  const canSave = !saving && !validationError;
   return (
     <div
       style={{
@@ -737,15 +807,31 @@ function LaborRowForm({
             [
               "week_start_date",
               "Week Start",
-              <input
-                key="wsd"
-                type="date"
-                value={draft.week_start_date}
-                onChange={(e) =>
-                  onDraftChange({ ...draft, week_start_date: e.target.value })
-                }
-                style={inputStyle}
-              />,
+              weekStartReadOnly ? (
+                <span
+                  key="wsd"
+                  style={{
+                    ...inputStyle,
+                    background: "transparent",
+                    border: "none",
+                    padding: "5px 0",
+                  }}
+                >
+                  {draft.week_start_date
+                    ? formatWeekLabel(draft.week_start_date)
+                    : "—"}
+                </span>
+              ) : (
+                <input
+                  key="wsd"
+                  type="date"
+                  value={draft.week_start_date}
+                  onChange={(e) =>
+                    onDraftChange({ ...draft, week_start_date: e.target.value })
+                  }
+                  style={inputStyle}
+                />
+              ),
             ],
             [
               "labor_role_id",
@@ -826,8 +912,22 @@ function LaborRowForm({
           </div>
         ))}
       </div>
+      {validationError && (
+        <div
+          style={{
+            padding: "8px 12px",
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.25)",
+            borderRadius: 6,
+            color: "var(--bad)",
+            fontSize: 12,
+          }}
+        >
+          {validationError}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
-        <Btn onClick={onSave} disabled={saving} variant="primary" small>
+        <Btn onClick={onSave} disabled={!canSave} variant="primary" small>
           {saving ? "Saving..." : "Save"}
         </Btn>
         <Btn onClick={onCancel} disabled={saving} variant="ghost" small>
@@ -838,9 +938,421 @@ function LaborRowForm({
   );
 }
 
+// ─── Edit labor row modal ─────────────────────────────────────────────────────
+function EditLaborRowModal({
+  draft,
+  laborRoles,
+  saving,
+  laborError,
+  onDraftChange,
+  onSave,
+  onCancel,
+}: {
+  draft: LaborRowDraft;
+  laborRoles: LaborRole[];
+  saving: boolean;
+  laborError: string | null;
+  onDraftChange: (d: LaborRowDraft) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const validationError = validateLaborDraft(draft);
+  const displayError = laborError ?? validationError;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          background: "#0f172a",
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: 28,
+          width: "100%",
+          maxWidth: 440,
+          display: "grid",
+          gap: 20,
+        }}
+      >
+        <h3
+          style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.primary }}
+        >
+          Edit Labor Row
+        </h3>
+        <LaborRowForm
+          draft={draft}
+          laborRoles={laborRoles}
+          saving={saving}
+          onDraftChange={onDraftChange}
+          onSave={onSave}
+          onCancel={onCancel}
+          weekStartReadOnly
+          validationError={displayError}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Confirm delete labor row modal ──────────────────────────────────────────
+function ConfirmDeleteLaborRowModal({
+  roleLabel,
+  weekLabel,
+  deleting,
+  onConfirm,
+  onCancel,
+}: {
+  roleLabel: string;
+  weekLabel: string;
+  deleting: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          background: "#0f172a",
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: 28,
+          width: "100%",
+          maxWidth: 400,
+          display: "grid",
+          gap: 20,
+        }}
+      >
+        <h3
+          style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.primary }}
+        >
+          Delete Labor Row
+        </h3>
+        <p
+          style={{ margin: 0, fontSize: 13, color: C.muted, lineHeight: 1.6 }}
+        >
+          Delete this labor row? <strong>{roleLabel}</strong> — Week of{" "}
+          {weekLabel}. This cannot be undone.
+        </p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <Btn onClick={onCancel} disabled={deleting} variant="ghost">
+            Cancel
+          </Btn>
+          <Btn
+            onClick={onConfirm}
+            disabled={deleting}
+            variant="danger"
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Create exposure modal ───────────────────────────────────────────────────
+const CAUSE_TYPE_OPTIONS = [
+  { value: "client_driven", label: "Client-driven" },
+  { value: "scope_change", label: "Scope change" },
+  { value: "internal_risk", label: "Internal risk" },
+  { value: "other", label: "Other" },
+] as const;
+
+function CreateExposureModal({
+  currentVersionId,
+  saving,
+  error,
+  onSave,
+  onCancel,
+}: {
+  currentVersionId: string | null;
+  saving: boolean;
+  error: string | null;
+  onSave: (draft: {
+    title: string;
+    cause_type: string;
+    status: string;
+    attachToVersion: boolean;
+    laborHoursDelta: string;
+    laborCostDelta: string;
+    materialCostDelta: string;
+  }) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [causeType, setCauseType] = useState("");
+  const [attachToVersion, setAttachToVersion] = useState(false);
+  const [laborHoursDelta, setLaborHoursDelta] = useState("0");
+  const [laborCostDelta, setLaborCostDelta] = useState("0");
+  const [materialCostDelta, setMaterialCostDelta] = useState("0");
+
+  function validate(): string | null {
+    if (!title.trim()) return "Title / Reason is required.";
+    if (!causeType) return "Cause type is required.";
+    const lh = Number(laborHoursDelta);
+    const lc = Number(laborCostDelta);
+    const mc = Number(materialCostDelta);
+    if (isNaN(lh) || lh < 0) return "Labor hours delta must be 0 or greater.";
+    if (isNaN(lc) || lc < 0) return "Labor cost delta must be 0 or greater.";
+    if (isNaN(mc) || mc < 0) return "Material cost delta must be 0 or greater.";
+    return null;
+  }
+
+  const validationError = validate();
+  const canSave = !saving && !validationError;
+
+  const inputStyle: React.CSSProperties = {
+    background: "#0f172a",
+    border: `1px solid ${C.border}`,
+    borderRadius: 4,
+    color: C.primary,
+    fontSize: 12,
+    padding: "6px 10px",
+    fontFamily: "inherit",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "rgba(0,0,0,0.65)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          background: "#0f172a",
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: 28,
+          width: "100%",
+          maxWidth: 440,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          display: "grid",
+          gap: 20,
+        }}
+      >
+        <h3
+          style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.primary }}
+        >
+          Create Exposure
+        </h3>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gap: 4 }}>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: C.faint,
+              }}
+            >
+              Title / Reason
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Client requested additional scope"
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ display: "grid", gap: 4 }}>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: C.faint,
+              }}
+            >
+              Cause Type
+            </label>
+            <select
+              value={causeType}
+              onChange={(e) => setCauseType(e.target.value)}
+              style={{ ...inputStyle, cursor: "pointer" }}
+            >
+              <option value="">— Select —</option>
+              {CAUSE_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {currentVersionId && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                fontSize: 13,
+                color: C.muted,
+                cursor: "pointer",
+                padding: "10px 12px",
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                borderRadius: 6,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={attachToVersion}
+                onChange={(e) => setAttachToVersion(e.target.checked)}
+                style={{ width: 15, height: 15, accentColor: C.orange }}
+              />
+              Attach to current schedule version
+            </label>
+          )}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "grid", gap: 4 }}>
+              <label
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: C.faint,
+                }}
+              >
+                Labor Hrs Δ
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={laborHoursDelta}
+                onChange={(e) => setLaborHoursDelta(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ display: "grid", gap: 4 }}>
+              <label
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: C.faint,
+                }}
+              >
+                Labor Cost Δ
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={laborCostDelta}
+                onChange={(e) => setLaborCostDelta(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ display: "grid", gap: 4 }}>
+              <label
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: C.faint,
+                }}
+              >
+                Material Cost Δ
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={materialCostDelta}
+                onChange={(e) => setMaterialCostDelta(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          {(validationError || error) && (
+            <div
+              style={{
+                padding: "8px 12px",
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                borderRadius: 6,
+                color: "var(--bad)",
+                fontSize: 12,
+              }}
+            >
+              {validationError ?? error}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <Btn onClick={onCancel} disabled={saving} variant="ghost">
+            Cancel
+          </Btn>
+          <Btn
+            onClick={() =>
+              onSave({
+                title: title.trim(),
+                cause_type: causeType,
+                status: "open",
+                attachToVersion,
+                laborHoursDelta,
+                laborCostDelta,
+                materialCostDelta,
+              })
+            }
+            disabled={!canSave}
+            variant="primary"
+          >
+            {saving ? "Creating..." : "Create Exposure"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const hasAppliedUrlParams = useRef(false);
 
   // ── Data state ─────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -861,15 +1373,64 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // ── Create version modal ───────────────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
-  const [clientDriven, setClientDriven] = useState(false);
+  const [revisionReason, setRevisionReason] = useState<RevisionReason>("internal");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // ── Confirmation toast ─────────────────────────────────────────────────────
+  const [confirmationToast, setConfirmationToast] = useState<string | null>(null);
+  const [laborRowToast, setLaborRowToast] = useState<string | null>(null);
 
   // ── Labor row editing ──────────────────────────────────────────────────────
   const [editingDraft, setEditingDraft] = useState<LaborRowDraft | null>(null);
   const [addingDraft, setAddingDraft] = useState<LaborRowDraft | null>(null);
   const [savingRow, setSavingRow] = useState(false);
   const [laborError, setLaborError] = useState<string | null>(null);
+  const [deleteRowTarget, setDeleteRowTarget] = useState<{
+    rowId: string;
+    versionId: string;
+    roleLabel: string;
+    weekLabel: string;
+  } | null>(null);
+  const [deletingRow, setDeletingRow] = useState(false);
+
+  // ── Exposure status update ──────────────────────────────────────────────────
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  // ── Edit exposure modal ───────────────────────────────────────────────────
+  const [editingExposure, setEditingExposure] = useState<FinancialExposure | null>(
+    null,
+  );
+  const [editingExposureSaving, setEditingExposureSaving] = useState(false);
+  const [editingExposureError, setEditingExposureError] = useState<string | null>(
+    null,
+  );
+
+  // ── Create exposure modal ──────────────────────────────────────────────────
+  const [showCreateExposureModal, setShowCreateExposureModal] = useState(false);
+  const [createExposureSaving, setCreateExposureSaving] = useState(false);
+  const [createExposureError, setCreateExposureError] = useState<string | null>(
+    null,
+  );
+
+  // ── Create CO from exposure ───────────────────────────────────────────────
+  const [createCOFromExposure, setCreateCOFromExposure] =
+    useState<FinancialExposure | null>(null);
+  const [createCOSaving, setCreateCOSaving] = useState(false);
+  const [createCOError, setCreateCOError] = useState<string | null>(null);
+  const [coByExposureId, setCoByExposureId] = useState<
+    Record<string, { co_number: string; id: string; status: string }>
+  >({});
+
+  // ── Forecast drilldown ─────────────────────────────────────────────────────
+  const [selectedForecastRow, setSelectedForecastRow] = useState<{
+    week_start_date: string;
+    labor_role: string;
+  } | null>(null);
+  const [contributingRows, setContributingRows] = useState<
+    ContributingDemandRow[]
+  >([]);
+  const [contributingLoading, setContributingLoading] = useState(false);
 
   // ── Load all page data ─────────────────────────────────────────────────────
   async function loadAll() {
@@ -948,7 +1509,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       setLoading(false);
       return;
     }
-    setExposures((exposureData ?? []) as unknown as FinancialExposure[]);
+    const expList = (exposureData ?? []) as unknown as FinancialExposure[];
+    setExposures(expList);
+
+    const expIds = expList.map((e) => e.id);
+    if (expIds.length > 0) {
+      const { data: coData } = await supabase
+        .from("change_orders")
+        .select("id, co_number, financial_exposure_id, status")
+        .in("financial_exposure_id", expIds);
+      const coMap: Record<string, { co_number: string; id: string; status: string }> = {};
+      ((coData ?? []) as { financial_exposure_id: string; co_number: string; id: string; status: string }[]).forEach(
+        (c) => {
+          if (c.financial_exposure_id)
+            coMap[c.financial_exposure_id] = {
+              co_number: c.co_number,
+              id: c.id,
+              status: c.status ?? "draft",
+            };
+        },
+      );
+      setCoByExposureId(coMap);
+    } else {
+      setCoByExposureId({});
+    }
 
     // Capacity view — filtered by tenant_id
     const { data: capData, error: capErr } = await supabase
@@ -995,15 +1579,51 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     loadAll();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apply week/role from URL params (e.g. from dashboard capacity issue click-through)
+  useEffect(() => {
+    if (loading || capacityRows.length === 0 || hasAppliedUrlParams.current)
+      return;
+    const week = searchParams.get("week");
+    const role = searchParams.get("role");
+    if (!week || !role) return;
+    const match = capacityRows.some(
+      (r) => r.week_start_date === week && r.labor_role === role,
+    );
+    if (match) {
+      hasAppliedUrlParams.current = true;
+      setSelectedForecastRow({ week_start_date: week, labor_role: role });
+      requestAnimationFrame(() => {
+        document.getElementById("capacity-forecast")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, [loading, capacityRows, searchParams]);
+
+  useEffect(() => {
+    if (selectedForecastRow && project) {
+      loadContributingDemand(
+        selectedForecastRow.week_start_date,
+        selectedForecastRow.labor_role,
+      );
+    } else {
+      setContributingRows([]);
+    }
+  }, [selectedForecastRow?.week_start_date, selectedForecastRow?.labor_role, project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleCreateVersion() {
+    if (!project) return;
     setCreating(true);
     setCreateError(null);
+    const createsExposure =
+      revisionReason === "client_driven" || revisionReason === "scope_change";
     const {
       data: { user },
     } = await supabase.auth.getUser();
     const { error: rpcError } = await supabase.rpc("create_schedule_version", {
       p_project_id: id,
-      p_client_driven: clientDriven,
+      p_client_driven: createsExposure,
       p_user_id: user?.id ?? null,
     });
     if (rpcError) {
@@ -1012,7 +1632,57 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       return;
     }
     setShowModal(false);
-    setClientDriven(false);
+    setRevisionReason("internal");
+
+    // If client-driven or scope change, create financial exposure
+    if (createsExposure) {
+      const { data: newVersion } = await supabase
+        .from("schedule_versions")
+        .select("id, version_number")
+        .eq("project_id", id)
+        .eq("is_current", true)
+        .single();
+      if (newVersion) {
+        const titleBase =
+          revisionReason === "client_driven"
+            ? "Client-driven schedule revision"
+            : "Scope change revision";
+        const title = `${titleBase} v${newVersion.version_number}`;
+        const { error: expErr } = await supabase
+          .from("financial_exposures")
+          .insert({
+            tenant_id: project.tenant_id,
+            project_id: id,
+            schedule_version_id: newVersion.id,
+            title,
+            status: "open",
+            cause_type: revisionReason,
+            estimated_labor_hours_delta: 0,
+            estimated_labor_cost_delta: 0,
+            estimated_material_cost_delta: 0,
+          });
+        if (!expErr) {
+          setConfirmationToast(
+            `Schedule version v${newVersion.version_number} created. Financial exposure record opened.`,
+          );
+          setTimeout(() => setConfirmationToast(null), 4000);
+        }
+      }
+    } else {
+      const { data: newVersion } = await supabase
+        .from("schedule_versions")
+        .select("version_number")
+        .eq("project_id", id)
+        .eq("is_current", true)
+        .single();
+      if (newVersion) {
+        setConfirmationToast(
+          `Schedule version v${newVersion.version_number} created.`,
+        );
+        setTimeout(() => setConfirmationToast(null), 4000);
+      }
+    }
+
     setCreating(false);
     await loadAll();
   }
@@ -1043,8 +1713,62 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
+  async function loadContributingDemand(
+    weekStartDate: string,
+    laborRoleName: string,
+  ) {
+    if (!project) return;
+    setContributingLoading(true);
+    setContributingRows([]);
+    const { data: roleData } = await supabase
+      .from("labor_roles")
+      .select("id")
+      .eq("tenant_id", project.tenant_id)
+      .eq("name", laborRoleName)
+      .maybeSingle();
+    if (!roleData) {
+      setContributingLoading(false);
+      return;
+    }
+    const { data: rows, error } = await supabase
+      .from("schedule_labor_weeks")
+      .select(
+        "headcount, hours_st, hours_ot, labor_role_id, " +
+          "schedule_versions(version_number, projects(project_number, name))",
+      )
+      .eq("tenant_id", project.tenant_id)
+      .eq("week_start_date", weekStartDate)
+      .eq("labor_role_id", roleData.id);
+    setContributingLoading(false);
+    if (error) return;
+    const mapped: ContributingDemandRow[] = ((rows ?? []) as unknown as Record<string, unknown>[])
+      .map((r: Record<string, unknown>) => {
+        const sv = r.schedule_versions as Record<string, unknown> | null;
+        const proj = (sv?.projects ?? {}) as Record<string, unknown>;
+        const roleName =
+          laborRoles.find((lr) => lr.id === r.labor_role_id)?.name ??
+          laborRoleName;
+        return {
+          project_number: String(proj.project_number ?? "—"),
+          project_name: String(proj.name ?? "—"),
+          version_number: Number(sv?.version_number ?? 0),
+          labor_role: roleName,
+          demand_headcount: Number(r.headcount ?? 0),
+          demand_hours:
+            Number(r.hours_st ?? 0) + Number(r.hours_ot ?? 0),
+        };
+      })
+      .filter((r) => r.project_number !== "—" || r.project_name !== "—");
+    setContributingRows(mapped);
+  }
+
   async function saveLaborRow(draft: LaborRowDraft, currentVersionId: string) {
     if (!project) return;
+    const validationErr = validateLaborDraft(draft);
+    if (validationErr) {
+      setLaborError(validationErr);
+      return;
+    }
     setSavingRow(true);
     setLaborError(null);
     const snapped = snapToMonday(draft.week_start_date);
@@ -1074,6 +1798,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         setSavingRow(false);
         return;
       }
+      setLaborRowToast("Labor row updated.");
+      setTimeout(() => setLaborRowToast(null), 4000);
     } else {
       const {
         data: { user },
@@ -1094,19 +1820,159 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   }
 
   async function deleteLaborRow(rowId: string, currentVersionId: string) {
-    if (!window.confirm("Delete this labor row? This cannot be undone."))
-      return;
+    if (!project) return;
     setLaborError(null);
+    setDeletingRow(true);
     const { error } = await supabase
       .from("schedule_labor_weeks")
       .delete()
       .eq("id", rowId)
-      .eq("schedule_version_id", currentVersionId);
+      .eq("schedule_version_id", currentVersionId)
+      .eq("tenant_id", project.tenant_id);
+    setDeletingRow(false);
     if (error) {
       setLaborError(error.message);
       return;
     }
+    setDeleteRowTarget(null);
+    setLaborRowToast("Labor row deleted.");
+    setTimeout(() => setLaborRowToast(null), 4000);
     await reloadAfterLaborMutation(currentVersionId);
+  }
+
+  async function handleCreateExposure(draft: {
+    title: string;
+    cause_type: string;
+    status: string;
+    attachToVersion: boolean;
+    laborHoursDelta: string;
+    laborCostDelta: string;
+    materialCostDelta: string;
+  }) {
+    if (!project) return;
+    setCreateExposureSaving(true);
+    const laborH = numOrNull(draft.laborHoursDelta) ?? 0;
+    const laborC = numOrNull(draft.laborCostDelta) ?? 0;
+    const materialC = numOrNull(draft.materialCostDelta) ?? 0;
+    const { error } = await supabase.from("financial_exposures").insert({
+      tenant_id: project.tenant_id,
+      project_id: id,
+      schedule_version_id: draft.attachToVersion && currentVersion
+        ? currentVersion.id
+        : null,
+      title: draft.title,
+      cause_type: draft.cause_type,
+      status: draft.status,
+      estimated_labor_hours_delta: laborH,
+      estimated_labor_cost_delta: laborC,
+      estimated_material_cost_delta: materialC,
+    });
+    setCreateExposureSaving(false);
+    if (error) {
+      setCreateExposureError(error.message);
+      return;
+    }
+    setShowCreateExposureModal(false);
+    setLaborRowToast("Financial exposure created.");
+    setTimeout(() => setLaborRowToast(null), 4000);
+    await loadAll();
+    document.getElementById("exposures-section")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
+  async function handleCreateCOFromExposure(draft: {
+    project_id: string;
+    financial_exposure_id: string | null;
+    co_number: string;
+    title: string;
+    status: string;
+    amount: string;
+  }) {
+    if (!project) return;
+    setCreateCOSaving(true);
+    setCreateCOError(null);
+    const amountNum = Number(draft.amount);
+    const { error } = await supabase.from("change_orders").insert({
+      tenant_id: project.tenant_id,
+      project_id: draft.project_id,
+      financial_exposure_id: draft.financial_exposure_id || null,
+      co_number: draft.co_number,
+      title: draft.title,
+      status: draft.status,
+      amount: isNaN(amountNum) ? 0 : Math.max(0, amountNum),
+    });
+    setCreateCOSaving(false);
+    if (error) {
+      setCreateCOError(error.message);
+      return;
+    }
+    setCreateCOFromExposure(null);
+    setLaborRowToast("Change order created from exposure.");
+    setTimeout(() => setLaborRowToast(null), 4000);
+    await loadAll();
+  }
+
+  const EXPOSURE_STATUSES = ["open", "pending", "closed"] as const;
+
+  async function handleEditExposure(draft: {
+    title: string;
+    cause_type: string;
+    laborHoursDelta: string;
+    laborCostDelta: string;
+    materialCostDelta: string;
+    scheduleVersionChoice: "keep" | "attach" | "clear";
+  }) {
+    if (!project || !editingExposure) return;
+    setEditingExposureSaving(true);
+    setEditingExposureError(null);
+    let scheduleVersionId: string | null = editingExposure.schedule_version_id;
+    if (draft.scheduleVersionChoice === "attach" && currentVersion)
+      scheduleVersionId = currentVersion.id;
+    else if (draft.scheduleVersionChoice === "clear")
+      scheduleVersionId = null;
+    const { error } = await supabase
+      .from("financial_exposures")
+      .update({
+        title: draft.title,
+        cause_type: draft.cause_type,
+        estimated_labor_hours_delta: numOrNull(draft.laborHoursDelta) ?? 0,
+        estimated_labor_cost_delta: numOrNull(draft.laborCostDelta) ?? 0,
+        estimated_material_cost_delta: numOrNull(draft.materialCostDelta) ?? 0,
+        schedule_version_id: scheduleVersionId,
+      })
+      .eq("id", editingExposure.id)
+      .eq("tenant_id", project.tenant_id);
+    setEditingExposureSaving(false);
+    if (error) {
+      setEditingExposureError(error.message);
+      return;
+    }
+    setEditingExposure(null);
+    setLaborRowToast("Exposure updated.");
+    setTimeout(() => setLaborRowToast(null), 4000);
+    await loadAll();
+  }
+
+  async function updateExposureStatus(expId: string, newStatus: string) {
+    if (!project || !EXPOSURE_STATUSES.includes(newStatus as (typeof EXPOSURE_STATUSES)[number]))
+      return;
+    setStatusUpdatingId(expId);
+    const { error } = await supabase
+      .from("financial_exposures")
+      .update({ status: newStatus })
+      .eq("id", expId)
+      .eq("tenant_id", project.tenant_id);
+    setStatusUpdatingId(null);
+    if (error) {
+      setLaborError(error.message);
+      return;
+    }
+    setLaborError(null);
+    setLaborRowToast("Exposure status updated.");
+    setTimeout(() => setLaborRowToast(null), 4000);
+    await loadAll();
   }
 
   // ─── Derived data ──────────────────────────────────────────────────────────
@@ -1174,13 +2040,149 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           currentVersionNum={currentVersion.version_number}
           creating={creating}
           createError={createError}
-          clientDriven={clientDriven}
-          onClientDrivenChange={setClientDriven}
+          revisionReason={revisionReason}
+          onRevisionReasonChange={setRevisionReason}
           onConfirm={handleCreateVersion}
           onCancel={() => {
             setShowModal(false);
-            setClientDriven(false);
+            setRevisionReason("internal");
             setCreateError(null);
+          }}
+        />
+      )}
+
+      {confirmationToast && (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 90,
+            background: C.surface,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            padding: "12px 20px",
+            fontSize: 13,
+            color: C.primary,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          {confirmationToast}
+        </div>
+      )}
+
+      {laborRowToast && (
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 90,
+            background: C.surface,
+            border: `1px solid ${C.border}`,
+            borderRadius: 8,
+            padding: "12px 20px",
+            fontSize: 13,
+            color: C.primary,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          {laborRowToast}
+        </div>
+      )}
+
+      {editingDraft?.id && currentVersion && (
+        <EditLaborRowModal
+          draft={editingDraft}
+          laborRoles={laborRoles}
+          saving={savingRow}
+          laborError={laborError}
+          onDraftChange={setEditingDraft}
+          onSave={() => saveLaborRow(editingDraft, currentVersion.id)}
+          onCancel={() => {
+            setEditingDraft(null);
+            setLaborError(null);
+          }}
+        />
+      )}
+
+      {deleteRowTarget && (
+        <ConfirmDeleteLaborRowModal
+          roleLabel={deleteRowTarget.roleLabel}
+          weekLabel={deleteRowTarget.weekLabel}
+          deleting={deletingRow}
+          onConfirm={() =>
+            deleteLaborRow(deleteRowTarget.rowId, deleteRowTarget.versionId)
+          }
+          onCancel={() => setDeleteRowTarget(null)}
+        />
+      )}
+
+      {showCreateExposureModal && (
+        <CreateExposureModal
+          currentVersionId={currentVersion?.id ?? null}
+          saving={createExposureSaving}
+          error={createExposureError}
+          onSave={handleCreateExposure}
+          onCancel={() => {
+            setShowCreateExposureModal(false);
+            setCreateExposureError(null);
+          }}
+        />
+      )}
+
+      {createCOFromExposure && project && (
+        <CreateChangeOrderModal
+          projects={[
+            {
+              id: project.id,
+              project_number: project.project_number,
+              name: project.name,
+            },
+          ]}
+          exposures={exposures.map((x) => ({
+            id: x.id,
+            project_id: x.project_id,
+            title: x.title,
+          }))}
+          selectedProjectId={project.id}
+          prefillFromExposure={{
+            id: createCOFromExposure.id,
+            project_id: createCOFromExposure.project_id,
+            title: createCOFromExposure.title,
+            estimated_labor_cost_delta:
+              createCOFromExposure.estimated_labor_cost_delta,
+            estimated_material_cost_delta:
+              createCOFromExposure.estimated_material_cost_delta,
+          }}
+          saving={createCOSaving}
+          error={createCOError}
+          onSave={handleCreateCOFromExposure}
+          onCancel={() => {
+            setCreateCOFromExposure(null);
+            setCreateCOError(null);
+          }}
+        />
+      )}
+      {editingExposure && (
+        <EditExposureModal
+          exposure={editingExposure}
+          currentVersionId={currentVersion?.id ?? null}
+          linkedVersionLabel={
+            editingExposure.schedule_version_id
+              ? `v${versionById[editingExposure.schedule_version_id]?.version_number ?? "?"}`
+              : null
+          }
+          saving={editingExposureSaving}
+          error={editingExposureError}
+          onSave={handleEditExposure}
+          onCancel={() => {
+            setEditingExposure(null);
+            setEditingExposureError(null);
           }}
         />
       )}
@@ -1224,6 +2226,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             {project.project_number}
           </span>
           <StatusBadge status={project.status} />
+          <Link
+            href="/help#workflow"
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              color: "var(--muted)",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span style={{ opacity: 0.7 }}>?</span> Help
+          </Link>
         </div>
         <h1
           className="pi-page-title"
@@ -1333,30 +2349,54 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 open
               </span>
             </div>
-            <Link
-              href="/exposures"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--brand)",
-                textDecoration: "none",
-              }}
-            >
-              View all exposures →
-            </Link>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <Btn
+                onClick={() => {
+                  setCreateExposureError(null);
+                  setShowCreateExposureModal(true);
+                }}
+                variant="primary"
+                small
+              >
+                Create Exposure
+              </Btn>
+              <Link
+                href="/exposures"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--brand)",
+                  textDecoration: "none",
+                }}
+              >
+                View all exposures →
+              </Link>
+            </div>
           </>
         ) : (
-          <p
-            style={{
-              margin: 0,
-              fontSize: 13,
-              color: "var(--muted)",
-              lineHeight: 1.4,
-            }}
-          >
-            Client-driven schedule revisions can create exposures. Create a new
-            version and check &quot;Client-driven revision&quot; to generate one.
-          </p>
+          <>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: "var(--muted)",
+                lineHeight: 1.4,
+              }}
+            >
+              Client-driven or scope-change revisions create exposures. You can
+              also create one manually.
+            </p>
+            <Btn
+              onClick={() => {
+                setCreateExposureError(null);
+                setShowCreateExposureModal(true);
+              }}
+              variant="primary"
+              small
+            >
+              Create Exposure
+            </Btn>
+          </>
         )}
       </div>
 
@@ -1376,7 +2416,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               <Btn
                 onClick={() => {
                   setCreateError(null);
-                  setClientDriven(false);
+                  setRevisionReason("internal");
                   setShowModal(true);
                 }}
                 variant="primary"
@@ -1541,6 +2581,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 setAddingDraft(null);
                 setLaborError(null);
               }}
+              validationError={validateLaborDraft(addingDraft)}
             />
           </div>
         )}
@@ -1601,28 +2642,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         <ColHead key={i} label={h} />
                       ))}
                     </div>
-                    {rows.map((week) => {
-                      const isEditing = editingDraft?.id === week.id;
-                      if (isEditing && isViewingCurrent && currentVersion) {
-                        return (
-                          <div key={week.id} style={{ padding: "8px 0" }}>
-                            <LaborRowForm
-                              draft={editingDraft}
-                              laborRoles={laborRoles}
-                              saving={savingRow}
-                              onDraftChange={setEditingDraft}
-                              onSave={() =>
-                                saveLaborRow(editingDraft, currentVersion.id)
-                              }
-                              onCancel={() => {
-                                setEditingDraft(null);
-                                setLaborError(null);
-                              }}
-                            />
-                          </div>
-                        );
-                      }
-                      return (
+                    {rows.map((week) => (
                         <div
                           key={week.id}
                           style={{
@@ -1687,9 +2707,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                 Edit
                               </Btn>
                               <Btn
-                                onClick={() =>
-                                  deleteLaborRow(week.id, currentVersion.id)
-                                }
+                                onClick={() => {
+                                  setLaborError(null);
+                                  setDeleteRowTarget({
+                                    rowId: week.id,
+                                    versionId: currentVersion.id,
+                                    roleLabel:
+                                      week.labor_role_id
+                                        ? (roleNameById[week.labor_role_id] ??
+                                            "Unknown Role")
+                                        : "—",
+                                    weekLabel: formatWeekLabel(
+                                      week.week_start_date,
+                                    ),
+                                  });
+                                }}
                                 variant="danger"
                                 small
                               >
@@ -1698,8 +2730,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             </div>
                           )}
                         </div>
-                      );
-                    })}
+                      ))}
                     <div
                       style={{
                         display: "grid",
@@ -1761,7 +2792,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       </Panel>
 
       {/* ── Capacity & Exposures ─────────────────────────────────────────────*/}
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 8 }} id="capacity-forecast">
         <Panel title="Capacity Forecast">
         {/* ── Section 1: Project Demand ──────────────────────────────────────*/}
         <SectionLabel
@@ -1849,9 +2880,37 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </div>
             {filteredCapacityRows.map((row, i) => {
               const sc = capacityStatusColors(row.status);
+              const isSelected =
+                selectedForecastRow?.week_start_date === row.week_start_date &&
+                selectedForecastRow?.labor_role === row.labor_role;
               return (
                 <div
                   key={i}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    setSelectedForecastRow(
+                      isSelected
+                        ? null
+                        : {
+                            week_start_date: row.week_start_date,
+                            labor_role: row.labor_role ?? "",
+                          },
+                    )
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedForecastRow(
+                        isSelected
+                          ? null
+                          : {
+                              week_start_date: row.week_start_date,
+                              labor_role: row.labor_role ?? "",
+                            },
+                      );
+                    }
+                  }}
                   style={{
                     display: "grid",
                     gridTemplateColumns:
@@ -1860,6 +2919,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     padding: "8px 0",
                     borderBottom: `1px solid ${C.borderFaint}`,
                     alignItems: "center",
+                    cursor: "pointer",
+                    background: isSelected
+                      ? "rgba(251,146,60,0.1)"
+                      : "transparent",
                   }}
                 >
                   <span style={{ color: C.dim, fontSize: 12 }}>
@@ -1933,9 +2996,193 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             })}
           </div>
         )}
+
+        {/* ── Forecast drilldown ─────────────────────────────────────────────*/}
+        {selectedForecastRow && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "16px 20px",
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: C.primary,
+                }}
+              >
+                Forecast Drilldown — {selectedForecastRow.labor_role} — Week of{" "}
+                {formatWeekLabel(selectedForecastRow.week_start_date)}
+              </h4>
+              <Btn
+                onClick={() => setSelectedForecastRow(null)}
+                variant="ghost"
+                small
+              >
+                Close
+              </Btn>
+            </div>
+            {(() => {
+              const row = filteredCapacityRows.find(
+                (r) =>
+                  r.week_start_date === selectedForecastRow.week_start_date &&
+                  r.labor_role === selectedForecastRow.labor_role,
+              );
+              if (!row) return null;
+              return (
+                <>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(100px, 1fr))",
+                      gap: 12,
+                      marginBottom: 16,
+                    }}
+                  >
+                    {[
+                      ["Demand Hrs", row.demand_hours],
+                      ["Available Hrs", row.available_hours],
+                      ["Net Hrs", row.net_hours],
+                      ["Demand HC", row.demand_headcount],
+                      ["Available HC", row.available_headcount],
+                      ["Net HC", row.net_headcount],
+                      ["Status", row.status],
+                    ].map(([label, val]) => (
+                      <div
+                        key={String(label)}
+                        style={{
+                          padding: "8px 12px",
+                          background: "var(--panel-lift)",
+                          borderRadius: 6,
+                          border: `1px solid ${C.borderFaint}`,
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                            color: C.faint,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: C.muted,
+                          }}
+                        >
+                          {typeof val === "number"
+                            ? val != null
+                              ? Number(val).toFixed(0)
+                              : "—"
+                            : val ?? "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <SectionLabel label="Contributing Demand" />
+                  {contributingLoading ? (
+                    <p style={{ margin: 0, fontSize: 13, color: C.muted }}>
+                      Loading...
+                    </p>
+                  ) : contributingRows.length > 0 ? (
+                    <div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "100px 1fr 70px 1fr 80px 80px",
+                          gap: 8,
+                          padding: "6px 0 6px",
+                          borderBottom: `1px solid ${C.borderFaint}`,
+                        }}
+                      >
+                        {[
+                          "Project #",
+                          "Project",
+                          "Version",
+                          "Role",
+                          "Dem HC",
+                          "Dem Hrs",
+                        ].map((h) => (
+                          <ColHead key={h} label={h} />
+                        ))}
+                      </div>
+                      {contributingRows.map((r, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "100px 1fr 70px 1fr 80px 80px",
+                            gap: 8,
+                            padding: "8px 0",
+                            borderBottom: `1px solid ${C.borderFaint}`,
+                            alignItems: "center",
+                          }}
+                        >
+                          <span style={{ fontSize: 12, color: C.muted }}>
+                            {r.project_number}
+                          </span>
+                          <span style={{ fontSize: 12, color: C.primary }}>
+                            {r.project_name}
+                          </span>
+                          <span style={{ fontSize: 12, color: C.dim }}>
+                            v{r.version_number}
+                          </span>
+                          <span style={{ fontSize: 12, color: C.muted }}>
+                            {r.labor_role}
+                          </span>
+                          <span style={{ fontSize: 12, color: C.muted }}>
+                            {r.demand_headcount}
+                          </span>
+                          <span style={{ fontSize: 12, color: C.muted }}>
+                            {r.demand_hours}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        color: C.muted,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Detailed contributing demand rows are not available yet for
+                      this forecast source.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
         </Panel>
 
-        <div style={{ marginTop: 24 }}>
+        <div id="exposures-section" style={{ marginTop: 24 }}>
           <Panel title="Financial Exposures">
         {exposures.length === 0 ? (
           <EmptyState label="No exposures found." />
@@ -1973,7 +3220,95 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     >
                       {exp.title ?? "Untitled Exposure"}
                     </span>
-                    {exp.status && <StatusBadge status={exp.status} />}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <select
+                      value={
+                        ["open", "pending", "closed"].includes(
+                          (exp.status ?? "").toLowerCase(),
+                        )
+                          ? (exp.status ?? "").toLowerCase()
+                          : "open"
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v && ["open", "pending", "closed"].includes(v))
+                          updateExposureStatus(exp.id, v);
+                      }}
+                      disabled={statusUpdatingId === exp.id}
+                      style={{
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        background:
+                          STATUS_MAP[(exp.status ?? "").toLowerCase()]?.bg ??
+                          C.surface,
+                        border: `1px solid ${
+                          STATUS_MAP[(exp.status ?? "").toLowerCase()]?.border ??
+                          C.border
+                        }`,
+                        borderRadius: 4,
+                        color:
+                          STATUS_MAP[(exp.status ?? "").toLowerCase()]?.text ??
+                          C.primary,
+                        cursor: statusUpdatingId === exp.id ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <option value="open">Open</option>
+                      <option value="pending">Pending</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                    {coByExposureId[exp.id] ? (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <Link
+                          href="/change-orders"
+                          title="Linked change order"
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--brand)",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {coByExposureId[exp.id].co_number}
+                        </Link>
+                        <span
+                          className={coStatusBadgeClass(coByExposureId[exp.id].status)}
+                          style={{
+                            padding: "2px 6px",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.05em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {coByExposureId[exp.id].status}
+                        </span>
+                      </div>
+                    ) : (
+                      <Btn
+                        onClick={() => {
+                          setCreateCOError(null);
+                          setCreateCOFromExposure(exp);
+                        }}
+                        variant="ghost"
+                        small
+                      >
+                        Create CO
+                      </Btn>
+                    )}
+                    <Btn
+                      onClick={() => {
+                        setEditingExposureError(null);
+                        setEditingExposure(exp);
+                      }}
+                      variant="ghost"
+                      small
+                    >
+                      Edit
+                    </Btn>
+                    </div>
                   </div>
                   {exp.description && (
                     <p
