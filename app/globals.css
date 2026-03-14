@@ -49,6 +49,7 @@ body {
     var(--bg);
   color: var(--text);
   font-family:
+    var(--font-geist-sans),
     Inter,
     system-ui,
     -apple-system,
@@ -165,7 +166,7 @@ body {
 
 /* KPI / stat card */
 .pi-stat {
-  background: var(--panel-lift);
+  background: linear-gradient(135deg, var(--panel-2), var(--panel-lift));
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: 14px 16px;
@@ -210,6 +211,7 @@ body {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-faint);
   color: var(--text);
+  transition: background 0.1s ease;
 }
 
 .pi-table tbody tr:last-child td {
@@ -317,4 +319,72 @@ body {
 
 .pi-btn-danger:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+/* ─── Skeleton loader ────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.pi-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--panel) 25%,
+    var(--panel-2) 50%,
+    var(--panel) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 4px;
+}
+
+/* ─── Toast slide-up ────────────────────────────────────────────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);   }
+}
+
+/* ─── Icon-only button ───────────────────────────────────────────────────── */
+.pi-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+
+.pi-icon-btn:hover {
+  background: var(--panel);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* ─── Status dropdown menu ───────────────────────────────────────────────── */
+.pi-status-menu {
+  background: #17171f;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  min-width: 130px;
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+.pi-status-option {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.pi-status-option:hover {
+  background: rgba(255, 255, 255, 0.06);
 }

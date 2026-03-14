@@ -1,24 +1,13 @@
 import { supabase } from "@/lib/supabaseClient";
+import type {
+  PersonnelWithRole,
+  AssignmentRollup,
+  LaborRole,
+} from "@/src/lib/types/workforce";
 
-export type LaborRole = {
-  id: string;
-  name: string;
-};
+export type { PersonnelWithRole, AssignmentRollup, LaborRole };
 
-export type Personnel = {
-  id: string;
-  tenant_id: string;
-  full_name: string;
-  labor_role_id: string | null;
-  active: boolean;
-  labor_roles: { id: string; name: string } | null;
-};
-
-export type AssignmentRollup = {
-  person_id: string;
-  current_project_name: string | null;
-  current_task_name: string | null;
-};
+export type Personnel = PersonnelWithRole;
 
 export type PersonWeekAssignment = {
   person_id: string;
@@ -27,7 +16,7 @@ export type PersonWeekAssignment = {
   schedule_task_name: string | null;
 };
 
-export async function getPersonnel(tenantId: string): Promise<Personnel[]> {
+export async function getPersonnel(tenantId: string): Promise<PersonnelWithRole[]> {
   const { data, error } = await supabase
     .from("personnel")
     .select(
@@ -37,6 +26,8 @@ export async function getPersonnel(tenantId: string): Promise<Personnel[]> {
       full_name,
       labor_role_id,
       active,
+      created_at,
+      updated_at,
       labor_roles ( id, name )
     `,
     )
@@ -48,13 +39,13 @@ export async function getPersonnel(tenantId: string): Promise<Personnel[]> {
     throw error;
   }
 
-  return (data ?? []) as Personnel[];
+  return (data ?? []) as unknown as PersonnelWithRole[];
 }
 
 export async function getLaborRoles(tenantId: string): Promise<LaborRole[]> {
   const { data, error } = await supabase
     .from("labor_roles")
-    .select("id, name")
+    .select("id, tenant_id, name")
     .eq("tenant_id", tenantId)
     .order("name");
 
@@ -63,7 +54,7 @@ export async function getLaborRoles(tenantId: string): Promise<LaborRole[]> {
     throw error;
   }
 
-  return (data ?? []) as LaborRole[];
+  return (data ?? []) as unknown as LaborRole[];
 }
 
 export async function getAssignmentRollup(
@@ -81,9 +72,15 @@ export async function getAssignmentRollup(
   }
 
   return (data ?? []).map((row: any) => ({
+    tenant_id: tenantId,
     person_id: row.person_id,
-    current_project_name: row.project_name,
-    current_task_name: row.schedule_task_name,
+    full_name: row.full_name ?? "",
+    labor_role_name: row.labor_role_name ?? null,
+    current_project_name: row.project_name ?? null,
+    current_task_name: row.schedule_task_name ?? null,
+    active_weeks: row.active_weeks ?? 0,
+    first_assignment: row.first_assignment ?? null,
+    last_assignment: row.last_assignment ?? null,
   })) as AssignmentRollup[];
 }
 

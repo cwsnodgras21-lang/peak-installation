@@ -192,7 +192,7 @@ export default function ReportsPage() {
     }
 
     // Section 1: Filter shortage rows (net_hours < 0 OR net_headcount < 0), limit to 12 weeks
-    const allForecast = (forecastRes.data ?? []) as CapacityShortageRow[];
+    const allForecast = (forecastRes.data ?? []) as unknown as CapacityShortageRow[];
     const weeks = [...new Set(allForecast.map((r) => r.week_start_date))].sort();
     const next12Weeks = weeks.slice(0, 12);
     const shortageFiltered = allForecast.filter(
@@ -203,10 +203,10 @@ export default function ReportsPage() {
     setShortageRows(shortageFiltered);
 
     // Section 2: Exposure report
-    setExposureRows((expRes.data ?? []) as ExposureReportRow[]);
+    setExposureRows((expRes.data ?? []) as unknown as ExposureReportRow[]);
 
     // Section 3: Aggregate labor by project (current version only), count open exposures
-    const laborWeeks = (laborRes.data ?? []) as LaborWeekRow[];
+    const laborWeeks = (laborRes.data ?? []) as unknown as LaborWeekRow[];
     const openCountByProject: Record<string, number> = {};
     ((exposuresForCount.data ?? []) as { project_id: string; status: string }[]).forEach(
       (e) => {

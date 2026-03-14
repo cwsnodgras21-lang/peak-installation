@@ -102,7 +102,7 @@ export default function ExposuresPage() {
     }
     setTenantId(profile.tenant_id);
 
-    const { data: expData, error: expErr } = await supabase
+    const { data: expRaw, error: expErr } = await supabase
       .from("financial_exposures")
       .select(
         "id, project_id, schedule_version_id, title, description, cause_type, " +
@@ -117,9 +117,10 @@ export default function ExposuresPage() {
       return;
     }
 
-    setExposures((expData ?? []) as Exposure[]);
+    const expData = (expRaw ?? []) as unknown as Exposure[];
+    setExposures(expData);
 
-    const projectIds = [...new Set((expData ?? []).map((e: Exposure) => e.project_id))];
+    const projectIds = [...new Set(expData.map((e) => e.project_id))];
     if (projectIds.length > 0) {
       const { data: projData } = await supabase
         .from("projects")

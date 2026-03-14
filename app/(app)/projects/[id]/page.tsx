@@ -1741,7 +1741,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       .eq("labor_role_id", roleData.id);
     setContributingLoading(false);
     if (error) return;
-    const mapped: ContributingDemandRow[] = (rows ?? [])
+    const mapped: ContributingDemandRow[] = ((rows ?? []) as unknown as Record<string, unknown>[])
       .map((r: Record<string, unknown>) => {
         const sv = r.schedule_versions as Record<string, unknown> | null;
         const proj = (sv?.projects ?? {}) as Record<string, unknown>;

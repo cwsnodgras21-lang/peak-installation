@@ -123,7 +123,7 @@ export default function ProjectsPage() {
       return;
     }
 
-    const projList = (projRes.data ?? []) as Project[];
+    const projList = (projRes.data ?? []) as unknown as Project[];
     const exposures = (expRes.data ?? []) as { project_id: string; status: string | null }[];
     const changeOrders = (coRes.data ?? []) as { project_id: string }[];
     const forecast = (forecastRes.data ?? []) as {

@@ -71,6 +71,8 @@ export default function ChangeOrdersPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     load();
@@ -139,8 +141,8 @@ export default function ChangeOrdersPage() {
     }
 
     setChangeOrders((coRes.data ?? []) as unknown as ChangeOrder[]);
-    setProjects((projRes.data ?? []) as ProjectRef[]);
-    setExposures((expRes.data ?? []) as ExposureRef[]);
+    setProjects((projRes.data ?? []) as unknown as ProjectRef[]);
+    setExposures((expRes.data ?? []) as unknown as ExposureRef[]);
     setLoading(false);
   }
 
@@ -292,6 +294,39 @@ export default function ChangeOrdersPage() {
           }}
         />
       )}
+      {openStatusId && (
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 49 }}
+            onClick={() => setOpenStatusId(null)}
+          />
+          <div
+            className="pi-status-menu"
+            style={{ position: "fixed", top: menuPos.top, left: menuPos.left, zIndex: 50 }}
+          >
+            {CO_STATUSES.map((s) => {
+              const bc =
+                s === "approved" || s === "billed"
+                  ? "pi-badge pi-badge-good"
+                  : s === "cancelled"
+                  ? "pi-badge pi-badge-bad"
+                  : "pi-badge pi-badge-warn";
+              return (
+                <div
+                  key={s}
+                  className="pi-status-option"
+                  onClick={() => {
+                    setOpenStatusId(null);
+                    updateChangeOrderStatus(openStatusId, s);
+                  }}
+                >
+                  <span className={bc}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
       {toast && (
         <div
           role="status"
@@ -301,15 +336,25 @@ export default function ChangeOrdersPage() {
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 90,
-            background: "var(--panel-lift)",
+            background: "rgba(15,15,20,0.85)",
             border: "1px solid var(--border)",
-            borderRadius: 8,
-            padding: "12px 20px",
+            borderRadius: 10,
+            padding: "10px 18px",
             fontSize: 13,
             color: "var(--text)",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            animation: "slideUp 0.2s ease",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
           }}
         >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="8" cy="8" r="6.5" fill="rgba(34,197,94,0.15)" stroke="#22c55e" strokeWidth="1.2" />
+            <path d="M5 8l2.5 2.5 3.5-4" stroke="#22c55e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           {toast}
         </div>
       )}
@@ -340,11 +385,26 @@ export default function ChangeOrdersPage() {
             textDecoration: "none",
             display: "inline-flex",
             alignItems: "center",
-            gap: 4,
+            gap: 6,
             flexShrink: 0,
           }}
         >
-          <span style={{ opacity: 0.7 }}>?</span> Help
+          <span
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              border: "1px solid var(--border)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          >
+            ?
+          </span>
+          Help
         </Link>
       </header>
 
@@ -353,9 +413,82 @@ export default function ChangeOrdersPage() {
       )}
 
       {loading ? (
-        <p className="pi-page-desc" style={{ padding: "24px 0" }}>
-          Loading…
-        </p>
+        <>
+          <section
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="pi-stat" style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 12,
+                  }}
+                >
+                  <div className="pi-skeleton" style={{ height: 11, width: "55%", borderRadius: 4 }} />
+                  <div className="pi-skeleton" style={{ height: 14, width: 14, borderRadius: 3 }} />
+                </div>
+                <div className="pi-skeleton" style={{ height: 22, width: "65%", borderRadius: 4 }} />
+              </div>
+            ))}
+          </section>
+          <section className="pi-card-lift" style={{ overflow: "hidden" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <div className="pi-skeleton" style={{ height: 13, width: 150, borderRadius: 4 }} />
+              <div className="pi-skeleton" style={{ height: 32, width: 150, borderRadius: 12 }} />
+            </div>
+            <div className="pi-table-wrap">
+              <table className="pi-table">
+                <thead>
+                  <tr>
+                    {["CO #", "Project", "Title", "Exposure", "Status", "Amount", "Created", "Updated", ""].map(
+                      (h, i) => (
+                        <th key={i}>
+                          {h && (
+                            <div
+                              className="pi-skeleton"
+                              style={{ height: 11, width: Math.max(28, h.length * 7), borderRadius: 3 }}
+                            />
+                          )}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <tr key={i}>
+                      <td><div className="pi-skeleton" style={{ height: 13, width: 55, borderRadius: 3 }} /></td>
+                      <td><div className="pi-skeleton" style={{ height: 13, width: 80, borderRadius: 3 }} /></td>
+                      <td><div className="pi-skeleton" style={{ height: 13, width: 160, borderRadius: 3 }} /></td>
+                      <td><div className="pi-skeleton" style={{ height: 13, width: 110, borderRadius: 3 }} /></td>
+                      <td><div className="pi-skeleton" style={{ height: 20, width: 80, borderRadius: 4 }} /></td>
+                      <td style={{ textAlign: "right" }}>
+                        <div className="pi-skeleton" style={{ height: 13, width: 60, borderRadius: 3, marginLeft: "auto" }} />
+                      </td>
+                      <td><div className="pi-skeleton" style={{ height: 13, width: 65, borderRadius: 3 }} /></td>
+                      <td><div className="pi-skeleton" style={{ height: 13, width: 65, borderRadius: 3 }} /></td>
+                      <td><div className="pi-skeleton" style={{ height: 26, width: 28, borderRadius: 6 }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
       ) : (
         <>
           {/* KPI cards */}
@@ -370,48 +503,49 @@ export default function ChangeOrdersPage() {
               className="pi-stat"
               style={{
                 minWidth: 0,
-                borderLeft:
-                  openCount > 0 ? "3px solid var(--warn)" : "3px solid var(--border)",
+                borderLeft: openCount > 0 ? "3px solid var(--warn)" : "3px solid var(--border)",
               }}
             >
-              <div className="pi-stat-label">Open Change Orders</div>
-              <div
-                className="pi-stat-value"
-                style={{
-                  fontSize: 22,
-                  color: openCount > 0 ? "var(--warn)" : "var(--text)",
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                <div className="pi-stat-label" style={{ marginBottom: 0 }}>Open Change Orders</div>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ color: "var(--muted)", opacity: 0.45, flexShrink: 0 }}>
+                  <rect x="2" y="1.5" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  <line x1="4.5" y1="5" x2="8.5" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <line x1="4.5" y1="7.5" x2="8.5" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <line x1="4.5" y1="10" x2="7" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="pi-stat-value" style={{ fontSize: 22, color: openCount > 0 ? "var(--warn)" : "var(--text)" }}>
                 {openCount}
               </div>
             </div>
             <div
               className="pi-stat"
-              style={{
-                minWidth: 0,
-                borderLeft: "3px solid var(--border)",
-              }}
+              style={{ minWidth: 0, borderLeft: "3px solid var(--border)" }}
             >
-              <div className="pi-stat-label">Pending Approval Value</div>
-              <div
-                className="pi-stat-value"
-                style={{ fontSize: 18, color: "var(--text)" }}
-              >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                <div className="pi-stat-label" style={{ marginBottom: 0 }}>Pending Approval Value</div>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ color: "var(--muted)", opacity: 0.45, flexShrink: 0 }}>
+                  <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M7.5 4.5V7.5l2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="pi-stat-value" style={{ fontSize: 18, color: "var(--text)" }}>
                 {formatCurrency(pendingApprovalValue)}
               </div>
             </div>
             <div
               className="pi-stat"
-              style={{
-                minWidth: 0,
-                borderLeft: "3px solid var(--border)",
-              }}
+              style={{ minWidth: 0, borderLeft: "3px solid var(--border)" }}
             >
-              <div className="pi-stat-label">Approved Not Billed</div>
-              <div
-                className="pi-stat-value"
-                style={{ fontSize: 18, color: "var(--text)" }}
-              >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                <div className="pi-stat-label" style={{ marginBottom: 0 }}>Approved Not Billed</div>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ color: "var(--muted)", opacity: 0.45, flexShrink: 0 }}>
+                  <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M5 7.5l2 2 3.5-3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="pi-stat-value" style={{ fontSize: 18, color: "var(--text)" }}>
                 {formatCurrency(approvedNotBilledValue)}
               </div>
             </div>
@@ -419,18 +553,17 @@ export default function ChangeOrdersPage() {
               className="pi-stat"
               style={{
                 minWidth: 0,
-                borderLeft:
-                  totalValue > 0 ? "3px solid var(--brand)" : "3px solid var(--border)",
+                borderLeft: totalValue > 0 ? "3px solid var(--brand)" : "3px solid var(--border)",
               }}
             >
-              <div className="pi-stat-label">Total Change Order Value</div>
-              <div
-                className="pi-stat-value"
-                style={{
-                  fontSize: 18,
-                  color: totalValue > 0 ? "var(--brand)" : "var(--text)",
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                <div className="pi-stat-label" style={{ marginBottom: 0 }}>Total Change Order Value</div>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{ color: "var(--muted)", opacity: 0.45, flexShrink: 0 }}>
+                  <path d="M2 10.5l3.5-3.5 3 3L13 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10 3h3v3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="pi-stat-value" style={{ fontSize: 18, color: totalValue > 0 ? "var(--brand)" : "var(--text)" }}>
                 {formatCurrency(totalValue)}
               </div>
             </div>
@@ -534,40 +667,36 @@ export default function ChangeOrdersPage() {
                             )}
                           </td>
                           <td>
-                            <select
-                              value={
-                                CO_STATUSES.includes(
-                                  (co.status ?? "").toLowerCase() as (typeof CO_STATUSES)[number],
-                                )
-                                  ? (co.status ?? "").toLowerCase()
-                                  : "draft"
-                              }
-                              onChange={(ev) => {
-                                const v = ev.target.value;
-                                if (v && CO_STATUSES.includes(v as (typeof CO_STATUSES)[number]))
-                                  updateChangeOrderStatus(co.id, v);
-                              }}
-                              disabled={statusUpdatingId === co.id}
+                            <div
+                              role="button"
                               className={statusBadgeClass(co.status)}
+                              onClick={(e) => {
+                                if (statusUpdatingId === co.id) return;
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuPos({ top: rect.bottom + 4, left: rect.left });
+                                setOpenStatusId(openStatusId === co.id ? null : co.id);
+                              }}
                               style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
                                 padding: "4px 8px",
                                 fontSize: 11,
                                 fontWeight: 700,
                                 letterSpacing: "0.06em",
                                 textTransform: "capitalize",
-                                border: "1px solid rgba(0,0,0,0.15)",
                                 borderRadius: 4,
-                                cursor:
-                                  statusUpdatingId === co.id ? "not-allowed" : "pointer",
+                                cursor: statusUpdatingId === co.id ? "not-allowed" : "pointer",
                                 minWidth: 90,
+                                userSelect: "none",
+                                opacity: statusUpdatingId === co.id ? 0.6 : 1,
                               }}
                             >
-                              {CO_STATUSES.map((s) => (
-                                <option key={s} value={s}>
-                                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                                </option>
-                              ))}
-                            </select>
+                              {(co.status ?? "draft").charAt(0).toUpperCase() + (co.status ?? "draft").slice(1)}
+                              <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{ flexShrink: 0 }}>
+                                <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </div>
                           </td>
                           <td
                             style={{
@@ -586,22 +715,17 @@ export default function ChangeOrdersPage() {
                           <td>
                             <button
                               type="button"
+                              className="pi-icon-btn"
                               onClick={() => {
                                 setEditError(null);
                                 setEditingChangeOrder(co);
                               }}
-                              style={{
-                                padding: "4px 10px",
-                                fontSize: 12,
-                                fontWeight: 600,
-                                background: "transparent",
-                                color: "var(--brand)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "var(--r-sm)",
-                                cursor: "pointer",
-                              }}
+                              title="Edit change order"
+                              aria-label="Edit change order"
                             >
-                              Edit
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M9.5 2.5l2 2-6.5 6.5-2.5.5.5-2.5 6.5-6.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                              </svg>
                             </button>
                           </td>
                         </tr>

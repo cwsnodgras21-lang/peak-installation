@@ -194,7 +194,7 @@ export default function DashboardPage() {
     }
 
     const projects = (projRes.data ?? []) as { id: string; project_number: string; name: string }[];
-    const exposures = (expRes.data ?? []) as ExposureRow[];
+    const exposures = (expRes.data ?? []) as unknown as ExposureRow[];
     const changeOrders = (coRes.data ?? []) as {
       id: string;
       project_id: string;
@@ -290,7 +290,7 @@ export default function DashboardPage() {
     }
     setProjectsMap(projMap);
 
-    setRows((forecastRes.data ?? []) as ForecastRow[]);
+    setRows((forecastRes.data ?? []) as unknown as ForecastRow[]);
     setProjectDemand(demandRes.data || []);
     setLoading(false);
   }
@@ -1134,7 +1134,7 @@ export default function DashboardPage() {
                                 : "pi-badge pi-badge-good"
                           }
                         >
-                          {row.status.toUpperCase()}
+                          {(row.status ?? "").toUpperCase()}
                         </span>
                       </td>
                     </tr>
