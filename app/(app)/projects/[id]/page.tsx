@@ -1292,6 +1292,74 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         <KpiCard label="Exposures" value={exposures.length} />
       </section>
 
+      {/* ── Exposure summary ──────────────────────────────────────────────────*/}
+      <div
+        className="pi-card"
+        style={{
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        {exposures.length > 0 ? (
+          <>
+            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                <strong style={{ color: "var(--text)" }}>
+                  {exposures.length}
+                </strong>{" "}
+                exposure{exposures.length !== 1 ? "s" : ""}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                <strong
+                  style={{
+                    color:
+                      exposures.filter(
+                        (e) => (e.status ?? "").toLowerCase() === "open",
+                      ).length > 0
+                      ? "var(--warn)"
+                      : "var(--text)",
+                  }}
+                >
+                  {
+                    exposures.filter(
+                      (e) => (e.status ?? "").toLowerCase() === "open",
+                    ).length
+                  }
+                </strong>{" "}
+                open
+              </span>
+            </div>
+            <Link
+              href="/exposures"
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--brand)",
+                textDecoration: "none",
+              }}
+            >
+              View all exposures →
+            </Link>
+          </>
+        ) : (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: "var(--muted)",
+              lineHeight: 1.4,
+            }}
+          >
+            Client-driven schedule revisions can create exposures. Create a new
+            version and check &quot;Client-driven revision&quot; to generate one.
+          </p>
+        )}
+      </div>
+
       {/* ── Schedule & version (primary focus) ─────────────────────────────────*/}
       <section
         style={{

@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<ForecastRow[]>([]);
   const [projectDemand, setProjectDemand] = useState<ProjectDemand[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   useEffect(() => {
     loadData();
@@ -70,6 +71,20 @@ export default function DashboardPage() {
 
   const shortages = rows.filter((r) => Number(r.net_headcount ?? 0) < 0);
 
+  const laborRoles = [...new Set(rows.map((r) => r.labor_role))].filter(
+    Boolean,
+  ).sort();
+
+  const filteredShortages =
+    roleFilter === "all"
+      ? shortages
+      : shortages.filter((r) => r.labor_role === roleFilter);
+
+  const filteredRows =
+    roleFilter === "all"
+      ? rows
+      : rows.filter((r) => r.labor_role === roleFilter);
+
   const installerRows = rows.filter((r) => r.labor_role === "Installer");
 
   const riskWeeks = new Set(
@@ -87,9 +102,9 @@ export default function DashboardPage() {
     return sum + Number(r.demand_headcount || 0);
   }, 0);
 
-  function getProjectsForWeek(week: string) {
+  function getProjectsForWeek(week: string, role: string) {
     return projectDemand.filter(
-      (p) => p.week_start_date === week && p.labor_role === "Installer",
+      (p) => p.week_start_date === week && p.labor_role === role,
     );
   }
 
@@ -171,6 +186,36 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          {/* Labor role filter — applies to issues + forecast */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="pi-input"
+              style={{
+                width: "auto",
+                minWidth: 140,
+                cursor: "pointer",
+              }}
+            >
+              <option value="all">All roles</option>
+              {laborRoles.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              {filteredRows.length} of {rows.length} rows
+            </span>
+          </div>
+
           {/* Capacity issues — elevated when present */}
           {shortages.length > 0 && (
             <section
@@ -199,15 +244,26 @@ export default function DashboardPage() {
                     background: "var(--warn)",
                   }}
                 />
-                Capacity Issues ({shortages.length})
+                Capacity Issues ({filteredShortages.length})
               </h2>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {shortages.map((row, i) => {
-                  const projects =
-                    row.labor_role === "Installer"
-                      ? getProjectsForWeek(row.week_start_date)
-                      : [];
+                {filteredShortages.length === 0 ? (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      color: "var(--muted)",
+                    }}
+                  >
+                    No capacity issues for this role.
+                  </p>
+                ) : (
+                filteredShortages.map((row, i) => {
+                  const projects = getProjectsForWeek(
+                    row.week_start_date,
+                    row.labor_role,
+                  );
 
                   return (
                     <div
@@ -268,14 +324,15 @@ export default function DashboardPage() {
                               >
                                 {p.demand_headcount}
                               </span>{" "}
-                              installers
+                              {row.labor_role.toLowerCase()}s
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
                   );
-                })}
+                })
+                )}
               </div>
             </section>
           )}
@@ -305,7 +362,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row, i) => (
+                  {filteredRows.map((row, i) => (
                     <tr key={i}>
                       <td
                         style={{

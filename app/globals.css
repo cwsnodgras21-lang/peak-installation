@@ -95,6 +95,16 @@ body {
   background: rgba(255, 140, 0, 0.26);
 }
 
+/* App shell nav */
+.app-nav-item:hover {
+  color: var(--text) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.app-nav-item[data-active="true"]:hover {
+  background: rgba(255, 140, 0, 0.14) !important;
+}
+
 /* ─── Shared app design system ───────────────────────────────────────────── */
 
 /* Page shell */

@@ -29,11 +29,14 @@ function statusBadgeClass(status: string | null): string {
   return "pi-badge";
 }
 
+type StatusFilter = "all" | "open" | "pending" | "closed";
+
 export default function ExposuresPage() {
   const [loading, setLoading] = useState(true);
   const [exposures, setExposures] = useState<Exposure[]>([]);
   const [projects, setProjects] = useState<Record<string, ProjectRef>>({});
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   useEffect(() => {
     load();
@@ -113,7 +116,15 @@ export default function ExposuresPage() {
     }).format(value);
   }
 
-  // KPI values (computed from existing data)
+  // Filter exposures client-side (KPIs stay on full dataset)
+  const filteredExposures =
+    statusFilter === "all"
+      ? exposures
+      : exposures.filter(
+          (e) => (e.status ?? "").toLowerCase() === statusFilter,
+        );
+
+  // KPI values (computed from full dataset, not filtered)
   const totalExposures = exposures.length;
   const openExposures = exposures.filter(
     (e) => (e.status ?? "").toLowerCase() === "open",
@@ -242,6 +253,35 @@ export default function ExposuresPage() {
             <h2 className="pi-section-title" style={{ marginBottom: 16 }}>
               All Exposures
             </h2>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 16,
+              }}
+            >
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as StatusFilter)
+                }
+                className="pi-input"
+                style={{
+                  width: "auto",
+                  minWidth: 120,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="all">All</option>
+                <option value="open">Open</option>
+                <option value="pending">Pending</option>
+                <option value="closed">Closed</option>
+              </select>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                {filteredExposures.length} of {exposures.length}
+              </span>
+            </div>
             <div className="pi-table-wrap">
               <table className="pi-table pi-table-dashboard">
                 <thead>
@@ -262,7 +302,7 @@ export default function ExposuresPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {exposures.map((e) => (
+                  {filteredExposures.map((e) => (
                     <tr key={e.id} className="exposures-table-row">
                       <td>
                         <Link
